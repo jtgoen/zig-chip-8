@@ -2,7 +2,7 @@ const std = @import("std");
 const chip8 = @import("chip8.zig");
 const Chip8 = chip8.Chip8;
 
-pub fn main() !void {
+pub fn main() anyerror!void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
@@ -21,4 +21,8 @@ pub fn main() !void {
     _ = try interpreter.load("/home/gogogoen/code/zig/chip-8/programs/hex-to-dec.chip8");
 
     std.debug.print("Interpeter Initialized! {}. {s}\n", .{interpreter, interpreter.memory});
+}
+
+test "basic test" {
+    try std.testing.expectEqual(10, 3 + 7);
 }
