@@ -80,7 +80,7 @@ pub const Chip8 = struct {
     }
 
     pub fn load(self: *Chip8, file_path: []const u8) !usize {
-        var open_file = try fs.openFileAbsolute(file_path, .{});
+        var open_file = try fs.cwd().openFile(file_path, .{});
         defer open_file.close();
 
         return try open_file.reader().readAll(self.workspace());

@@ -18,7 +18,7 @@ pub fn main() anyerror!void {
 
     try interpreter.initialize();
 
-    _ = try interpreter.load("/home/gogogoen/code/zig/chip-8/programs/hex-to-dec.chip8");
+    _ = try interpreter.load("programs/hex-to-dec.chip8");
 
     std.debug.print("Interpeter Initialized! {}. {s}\n", .{interpreter, interpreter.memory});
 }
