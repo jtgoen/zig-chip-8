@@ -20,7 +20,7 @@ pub fn main() anyerror!void {
 
     _ = try interpreter.load("programs/hex-to-dec.chip8");
 
-    std.debug.print("Interpeter Initialized! {}. {s}\n", .{interpreter, interpreter.memory});
+    std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{interpreter, interpreter.memory});
 }
 
 test "basic test" {
