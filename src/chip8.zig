@@ -107,4 +107,9 @@ pub const Chip8 = struct {
             return self.memory[pc_init..0xFFF];
         }
     }
+
+    pub fn emulateCycle(self: *Chip8) !void {
+        var opcode: u16 = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
+        std.log.info("Pulled Opcode: {x}", .{opcode});
+    }
 };

@@ -21,6 +21,11 @@ pub fn main() anyerror!void {
     _ = try interpreter.load("programs/hex-to-dec.chip8");
 
     std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{interpreter, interpreter.memory});
+
+    while(true) {
+        _ = try interpreter.emulateCycle();
+        break;
+    }
 }
 
 test "basic test" {
