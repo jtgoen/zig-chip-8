@@ -137,7 +137,19 @@ pub const Chip8 = struct {
                                 self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
+                                std.log.info("Returning from subroutine to address {x}", .{self.stack[self.sp]});
 
+                                if (!self.is_eti_660 and (self.stack[self.sp] < pc_init or self.stack[self.sp] >= 4096)) {
+                                    return error{SegmentationFault};
+                                }
+                                else if (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096) {
+                                    return error{SegmentationFault};
+                                }
+                                self.pc = self.stack[self.sp];
+                                self.stack[self.sp] = 0;
+                                if (self.sp > 0) {
+                                    self.sp -= 1;
+                                }
                             },
                             else => { // 0NNN: Calls machine code routine (RCA 1802 for COSMAC VIP) at address NNN. Not necessary for most ROMs.
 
@@ -153,7 +165,26 @@ pub const Chip8 = struct {
 
             },
             0x2000 => { // 2NNN: Calls subroutine at NNN.
+                var sr_addr = opcode & 0x0FFF;
+                std.log.info("Calling subroutine at address {x}", .{sr_addr});
 
+                if (!self.is_eti_660 and (sr_addr < pc_init or sr_addr >= 4096)) {
+                    return error{SegmentationFault};
+                }
+                else if (sr_addr < eti_660_pc_init or sr_addr >= 4096) {
+                    return error{SegmentationFault};
+                }
+
+                if (self.stack[self.sp] != 0) {
+                    self.sp += 1;
+
+                    if (self.sp >= 16) {
+                        return error{SubroutineStackOverflow};
+                    }
+                }
+                self.stack[self.sp] = self.pc;
+
+                self.pc = sr_addr;
             },
             0x3000 => { // 3XNN: Skips the next instruction if VX equals NN.
                 skipNextInstruction(self, opcode, true);
@@ -382,4 +413,25 @@ test "Skip Instruction VX Not Equal" {
 
     try interpreter.decode(0x40BC);
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+}
+
+test "Call Subroutine" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.decode(0x2201);
+
+    try std.testing.expectEqual(1, interpreter.sp);
+    try std.testing.expectEqual(0x200, interpreter.stack[0]);
+    try std.testing.expectEqual(0x201, interpreter.pc);
 }
