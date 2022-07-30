@@ -18,7 +18,7 @@ pub fn main() anyerror!void {
 
     try interpreter.initialize();
 
-    _ = try interpreter.load("programs/hex-to-dec.chip8");
+    _ = try interpreter.load("programs/test_opcode.ch8");
 
     std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{interpreter, interpreter.memory});
 
