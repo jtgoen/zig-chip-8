@@ -106,12 +106,6 @@ pub const Chip8 = struct {
         return try open_file.reader().readAll(self.workspace());
     }
 
-    fn clear(comptime T: type, array_to_clear: []T) void {
-        for (array_to_clear) |_, i| {
-            array_to_clear[i] = 0;
-        }
-    }
-
     pub fn fontSet(self: *Chip8) []const u8 {
         return self.memory[0x050..0x0A0];
     }
@@ -138,7 +132,9 @@ pub const Chip8 = struct {
                     0x0000 => {
                         switch (opcode & 0x00FF) {
                             0x00E0 => { // 00E0: Clears the screen.
-
+                                std.log.info("Clearing screen", .{});
+                                clear(u8, self.screen);
+                                self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
 
@@ -160,10 +156,10 @@ pub const Chip8 = struct {
 
             },
             0x3000 => { // 3XNN: Skips the next instruction if VX equals NN.
-
+                skipNextInstruction(self, opcode, true);
             },
             0x4000 => { // 4XNN: Skips the next instruction if VX does not equal NN.
-
+                skipNextInstruction(self, opcode, false);
             },
             0x5000 => {
                 if (opcode & 0xF00F == 0x5000) { // 5XY0: Skips the next instruction if VX equals VY.
@@ -280,4 +276,92 @@ pub const Chip8 = struct {
         std.log.warn("Encountered unknown opcode {x}. Skipping.", .{opcode});
         self.pc += 2;
     }
+
+    fn skipNextInstruction(self: *Chip8, opcode: u16, if_eq: bool) void {
+        var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+        var vx_value: u8 = self.V[vx_index];
+        var nn: u8 = @truncate(u8, opcode & 0x00FF);
+
+        switch (if_eq) {
+            true => {
+                if (vx_value == nn) {
+                    self.pc += 4;
+                } else {
+                    self.pc += 2;
+                }
+            },
+            false => {
+                if (vx_value != nn) {
+                    self.pc += 4;
+                } else {
+                    self.pc += 2;
+                }
+            },
+        }
+    }
 };
+
+fn clear(comptime T: type, array_to_clear: []T) void {
+    for (array_to_clear) |_, i| {
+        array_to_clear[i] = 0;
+    }
+}
+
+test "Clear Screen" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{ .memory = try allocator.create([4096]u8), .V = try allocator.create([16]u8), .stack = try allocator.create([16]u16), .screen = try allocator.create([resolution]u8), .keypad = try allocator.create([16]u8) };
+
+    interpreter.screen.* = [_]u8{9} ** resolution;
+
+    var current_pc: u16 = interpreter.pc;
+
+    try interpreter.decode(0x00E0);
+    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+    try std.testing.expectEqualSlices(u8, ([_]u8{0} ** resolution)[0..], (interpreter.screen.*)[0..]);
+}
+
+test "Skip Instruction VX Equal" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{ .memory = try allocator.create([4096]u8), .V = try allocator.create([16]u8), .stack = try allocator.create([16]u16), .screen = try allocator.create([resolution]u8), .keypad = try allocator.create([16]u8) };
+
+    interpreter.V[0] = 0xAB;
+
+    var current_pc: u16 = interpreter.pc;
+
+    try interpreter.decode(0x30AB);
+    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+
+    current_pc = interpreter.pc;
+
+    try interpreter.decode(0x30BC);
+    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+}
+
+test "Skip Instruction VX Not Equal" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{ .memory = try allocator.create([4096]u8), .V = try allocator.create([16]u8), .stack = try allocator.create([16]u16), .screen = try allocator.create([resolution]u8), .keypad = try allocator.create([16]u8) };
+
+    interpreter.V[0] = 0xBC;
+
+    var current_pc: u16 = interpreter.pc;
+
+    try interpreter.decode(0x40AB);
+    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+
+    current_pc = interpreter.pc;
+
+    try interpreter.decode(0x40BC);
+    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+}
