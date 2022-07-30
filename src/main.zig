@@ -23,7 +23,7 @@ pub fn main() anyerror!void {
     std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{ interpreter, interpreter.memory });
 
     while (true) {
-        _ = try interpreter.emulateCycle();
+        try interpreter.emulateCycle();
         break;
     }
 }
