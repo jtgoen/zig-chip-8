@@ -313,7 +313,13 @@ test "Clear Screen" {
 
     const allocator = arena.allocator();
 
-    var interpreter = Chip8{ .memory = try allocator.create([4096]u8), .V = try allocator.create([16]u8), .stack = try allocator.create([16]u16), .screen = try allocator.create([resolution]u8), .keypad = try allocator.create([16]u8) };
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
 
     interpreter.screen.* = [_]u8{9} ** resolution;
 
@@ -330,7 +336,13 @@ test "Skip Instruction VX Equal" {
 
     const allocator = arena.allocator();
 
-    var interpreter = Chip8{ .memory = try allocator.create([4096]u8), .V = try allocator.create([16]u8), .stack = try allocator.create([16]u16), .screen = try allocator.create([resolution]u8), .keypad = try allocator.create([16]u8) };
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
 
     interpreter.V[0] = 0xAB;
 
@@ -351,7 +363,13 @@ test "Skip Instruction VX Not Equal" {
 
     const allocator = arena.allocator();
 
-    var interpreter = Chip8{ .memory = try allocator.create([4096]u8), .V = try allocator.create([16]u8), .stack = try allocator.create([16]u16), .screen = try allocator.create([resolution]u8), .keypad = try allocator.create([16]u8) };
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
 
     interpreter.V[0] = 0xBC;
 
