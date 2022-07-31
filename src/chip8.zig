@@ -337,6 +337,7 @@ pub const Chip8 = struct {
     }
 };
 
+// TODO: Need a cleaner, more generic way of "clearing" an array, or need a different data structure
 fn clear(comptime T: type, array_to_clear: []T) void {
     for (array_to_clear) |_, i| {
         array_to_clear[i] = 0;
