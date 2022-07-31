@@ -76,8 +76,8 @@ pub const Chip8 = struct {
     is_eti_660: bool = false,
 
     pub fn initialize(self: *Chip8) !void {
-        clear(u8, self.screen);
-        clear(u8, self.keypad);
+        self.screen.* = std.mem.zeroes([resolution]u8);
+        self.keypad.* = std.mem.zeroes([16]u8);
 
         self.opcode = 0;
 
@@ -89,12 +89,12 @@ pub const Chip8 = struct {
             self.pc = pc_init;
         }
 
-        clear(u16, self.stack);
+        self.stack.* = std.mem.zeroes([16]u16);
         self.sp = 0;
 
-        clear(u8, self.V);
+        self.V.* = std.mem.zeroes([16]u8);
 
-        clear(u8, self.memory);
+        self.memory.* = std.mem.zeroes([4096]u8);
         var fontset_slice = self.memory[0x050..0x0A0];
         for (fontset) |font_byte, i| {
             fontset_slice[i] = font_byte;
@@ -138,7 +138,7 @@ pub const Chip8 = struct {
                         switch (opcode & 0x00FF) {
                             0x00E0 => { // 00E0: Clears the screen.
                                 std.log.info("Clearing screen", .{});
-                                clear(u8, self.screen);
+                                self.screen.* = std.mem.zeroes([resolution]u8);
                                 self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
@@ -336,13 +336,6 @@ pub const Chip8 = struct {
         }
     }
 };
-
-// TODO: Need a cleaner, more generic way of "clearing" an array, or need a different data structure
-fn clear(comptime T: type, array_to_clear: []T) void {
-    for (array_to_clear) |_, i| {
-        array_to_clear[i] = 0;
-    }
-}
 
 test "Clear Screen" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
