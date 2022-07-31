@@ -31,7 +31,7 @@ const fontset = [_]u8{
 
 pub const resolution = 64 * 32;
 
-pub const Chip8Error = error {
+pub const Chip8Error = error{
     SegmentationFault,
     SubroutineStackOverflow,
 };
@@ -146,8 +146,7 @@ pub const Chip8 = struct {
 
                                 if (!self.is_eti_660 and (self.stack[self.sp] < pc_init or self.stack[self.sp] >= 4096)) {
                                     return Chip8Error.SegmentationFault;
-                                }
-                                else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096)) {
+                                } else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096)) {
                                     return Chip8Error.SegmentationFault;
                                 }
                                 self.pc = self.stack[self.sp];
@@ -175,11 +174,10 @@ pub const Chip8 = struct {
 
                 if (!self.is_eti_660 and (sr_addr < pc_init or sr_addr >= 4096)) {
                     return Chip8Error.SegmentationFault;
-                }
-                else if (self.is_eti_660 and (sr_addr < eti_660_pc_init or sr_addr >= 4096)) {
+                } else if (self.is_eti_660 and (sr_addr < eti_660_pc_init or sr_addr >= 4096)) {
                     return Chip8Error.SegmentationFault;
                 }
-                
+
                 if (self.stack[self.sp] != 0) {
                     self.sp += 1;
 
@@ -441,7 +439,7 @@ test "Call Subroutine and Return" {
     try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
     try std.testing.expectEqual(@as(u16, 0x200), interpreter.stack[0]);
     try std.testing.expectEqual(@as(u16, 0x201), interpreter.pc);
-    
+
     try interpreter.decode(0x00EE);
 
     try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
