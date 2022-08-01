@@ -31,6 +31,11 @@ const fontset = [_]u8{
 
 pub const resolution = 64 * 32;
 
+pub const Chip8Error = error{
+    SegmentationFault,
+    SubroutineStackOverflow,
+};
+
 pub const Chip8 = struct {
     // All accessible memory
     memory: *[4096]u8,
@@ -71,8 +76,8 @@ pub const Chip8 = struct {
     is_eti_660: bool = false,
 
     pub fn initialize(self: *Chip8) !void {
-        clear(u8, self.screen);
-        clear(u8, self.keypad);
+        self.screen.* = std.mem.zeroes([resolution]u8);
+        self.keypad.* = std.mem.zeroes([16]u8);
 
         self.opcode = 0;
 
@@ -84,12 +89,12 @@ pub const Chip8 = struct {
             self.pc = pc_init;
         }
 
-        clear(u16, self.stack);
+        self.stack.* = std.mem.zeroes([16]u16);
         self.sp = 0;
 
-        clear(u8, self.V);
+        self.V.* = std.mem.zeroes([16]u8);
 
-        clear(u8, self.memory);
+        self.memory.* = std.mem.zeroes([4096]u8);
         var fontset_slice = self.memory[0x050..0x0A0];
         for (fontset) |font_byte, i| {
             fontset_slice[i] = font_byte;
@@ -118,14 +123,14 @@ pub const Chip8 = struct {
         }
     }
 
-    pub fn emulateCycle(self: *Chip8) !void {
+    pub fn emulateCycle(self: *Chip8) Chip8Error!void {
         var opcode: u16 = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
         std.log.info("Fetched Opcode: {x}", .{opcode});
 
         return try decode(self, opcode);
     }
 
-    fn decode(self: *Chip8, opcode: u16) !void {
+    fn decode(self: *Chip8, opcode: u16) Chip8Error!void {
         switch (opcode & 0xF000) {
             0x0000 => {
                 switch (opcode & 0x0F00) {
@@ -133,11 +138,22 @@ pub const Chip8 = struct {
                         switch (opcode & 0x00FF) {
                             0x00E0 => { // 00E0: Clears the screen.
                                 std.log.info("Clearing screen", .{});
-                                clear(u8, self.screen);
+                                self.screen.* = std.mem.zeroes([resolution]u8);
                                 self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
+                                std.log.info("Returning from subroutine to address {x}", .{self.stack[self.sp]});
 
+                                if (!self.is_eti_660 and (self.stack[self.sp] < pc_init or self.stack[self.sp] >= 4096)) {
+                                    return Chip8Error.SegmentationFault;
+                                } else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096)) {
+                                    return Chip8Error.SegmentationFault;
+                                }
+                                self.pc = self.stack[self.sp];
+                                self.stack[self.sp] = 0;
+                                if (self.sp > 0) {
+                                    self.sp -= 1;
+                                }
                             },
                             else => { // 0NNN: Calls machine code routine (RCA 1802 for COSMAC VIP) at address NNN. Not necessary for most ROMs.
 
@@ -153,7 +169,25 @@ pub const Chip8 = struct {
 
             },
             0x2000 => { // 2NNN: Calls subroutine at NNN.
+                var sr_addr = opcode & 0x0FFF;
+                std.log.info("Calling subroutine at address {x}", .{sr_addr});
 
+                if (!self.is_eti_660 and (sr_addr < pc_init or sr_addr >= 4096)) {
+                    return Chip8Error.SegmentationFault;
+                } else if (self.is_eti_660 and (sr_addr < eti_660_pc_init or sr_addr >= 4096)) {
+                    return Chip8Error.SegmentationFault;
+                }
+
+                if (self.stack[self.sp] != 0) {
+                    self.sp += 1;
+
+                    if (self.sp >= 16) {
+                        return Chip8Error.SubroutineStackOverflow;
+                    }
+                }
+                self.stack[self.sp] = self.pc;
+
+                self.pc = sr_addr;
             },
             0x3000 => { // 3XNN: Skips the next instruction if VX equals NN.
                 skipNextInstruction(self, opcode, true);
@@ -301,12 +335,6 @@ pub const Chip8 = struct {
     }
 };
 
-fn clear(comptime T: type, array_to_clear: []T) void {
-    for (array_to_clear) |_, i| {
-        array_to_clear[i] = 0;
-    }
-}
-
 test "Clear Screen" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -320,6 +348,8 @@ test "Clear Screen" {
         .screen = try allocator.create([resolution]u8),
         .keypad = try allocator.create([16]u8),
     };
+
+    try interpreter.initialize();
 
     interpreter.screen.* = [_]u8{9} ** resolution;
 
@@ -343,6 +373,8 @@ test "Skip Instruction VX Equal" {
         .screen = try allocator.create([resolution]u8),
         .keypad = try allocator.create([16]u8),
     };
+
+    try interpreter.initialize();
 
     interpreter.V[0] = 0xAB;
 
@@ -371,6 +403,8 @@ test "Skip Instruction VX Not Equal" {
         .keypad = try allocator.create([16]u8),
     };
 
+    try interpreter.initialize();
+
     interpreter.V[0] = 0xBC;
 
     var current_pc: u16 = interpreter.pc;
@@ -382,4 +416,33 @@ test "Skip Instruction VX Not Equal" {
 
     try interpreter.decode(0x40BC);
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+}
+
+test "Call Subroutine and Return" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    try interpreter.decode(0x2201);
+
+    try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
+    try std.testing.expectEqual(@as(u16, 0x200), interpreter.stack[0]);
+    try std.testing.expectEqual(@as(u16, 0x201), interpreter.pc);
+
+    try interpreter.decode(0x00EE);
+
+    try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
+    try std.testing.expectEqual(@as(u16, 0), interpreter.stack[0]);
+    try std.testing.expectEqual(@as(u16, 0x200), interpreter.pc);
 }
