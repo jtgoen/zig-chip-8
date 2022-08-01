@@ -190,14 +190,14 @@ pub const Chip8 = struct {
                 self.pc = sr_addr;
             },
             0x3000 => { // 3XNN: Skips the next instruction if VX equals NN.
-                skipNextInstruction(self, opcode, true);
+                skipNextInstrVxNn(self, opcode, true);
             },
             0x4000 => { // 4XNN: Skips the next instruction if VX does not equal NN.
-                skipNextInstruction(self, opcode, false);
+                skipNextInstrVxNn(self, opcode, false);
             },
             0x5000 => {
                 if (opcode & 0xF00F == 0x5000) { // 5XY0: Skips the next instruction if VX equals VY.
-
+                    skipNextInstrVxVy(self, opcode);
                 } else {
                     unknownOpcode(self, opcode);
                 }
@@ -311,9 +311,10 @@ pub const Chip8 = struct {
         self.pc += 2;
     }
 
-    fn skipNextInstruction(self: *Chip8, opcode: u16, if_eq: bool) void {
+    fn skipNextInstrVxNn(self: *Chip8, opcode: u16, if_eq: bool) void {
         var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
         var vx_value: u8 = self.V[vx_index];
+
         var nn: u8 = @truncate(u8, opcode & 0x00FF);
 
         switch (if_eq) {
@@ -334,6 +335,20 @@ pub const Chip8 = struct {
         }
     }
 };
+
+fn skipNextInstrVxVy(self: *Chip8, opcode: u16) void {
+    var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+    var vx_value: u8 = self.V[vx_index];
+
+    var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
+    var vy_value: u8 = self.V[vy_index];
+
+    if (vx_value == vy_value) {
+        self.pc += 4;
+    } else {
+        self.pc += 2;
+    }
+}
 
 test "Clear Screen" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
@@ -415,6 +430,37 @@ test "Skip Instruction VX Not Equal" {
     current_pc = interpreter.pc;
 
     try interpreter.decode(0x40BC);
+    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+}
+
+test "Skip Instruction VX VY" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    interpreter.V[0] = 0xAB;
+    interpreter.V[1] = 0xAB;
+
+    var current_pc: u16 = interpreter.pc;
+
+    try interpreter.decode(0x5010);
+    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+
+    current_pc = interpreter.pc;
+    interpreter.V[1] = 0xBC;
+
+    try interpreter.decode(0x5010);
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
 }
 
