@@ -40,7 +40,7 @@ pub const Chip8 = struct {
     // All accessible memory
     memory: *[4096]u8,
 
-    // General purpose registers, labeled V0-VF
+    // General purpose registers, labeled V0-VF (VF is for the "carry flag")
     V: *[16]u8,
 
     // Index register, generally used for storing memory addresses,
@@ -124,13 +124,28 @@ pub const Chip8 = struct {
     }
 
     pub fn emulateCycle(self: *Chip8) Chip8Error!void {
-        var opcode: u16 = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
-        std.log.info("Fetched Opcode: {x}", .{opcode});
+        self.opcode = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
+        std.log.info("Fetched Opcode: {x}", .{self.opcode});
 
-        return try decode(self, opcode);
+        var result = try decode();
+
+        if (self.delay_timer > 0) {
+            self.delay_timer -= 1;
+            if (self.delay_timer == 0) {
+                std.log.info("Delay expired!");
+            }
+        }
+        if (self.sound_timer > 0) {
+            if (self.sound_timer == 0) {
+                std.log.alert("BEEP!");
+            }
+        }
+
+        return result;
     }
 
-    fn decode(self: *Chip8, opcode: u16) Chip8Error!void {
+    fn decode(self: *Chip8) Chip8Error!void {
+        var opcode = self.opcode;
         switch (opcode & 0xF000) {
             0x0000 => {
                 switch (opcode & 0x0F00) {
@@ -190,16 +205,16 @@ pub const Chip8 = struct {
                 self.pc = sr_addr;
             },
             0x3000 => { // 3XNN: Skips the next instruction if VX equals NN.
-                skipNextInstrVxNn(self, opcode, true);
+                self.skipNextInstrVxNn(true);
             },
             0x4000 => { // 4XNN: Skips the next instruction if VX does not equal NN.
-                skipNextInstrVxNn(self, opcode, false);
+                self.skipNextInstrVxNn(false);
             },
             0x5000 => {
                 if (opcode & 0xF00F == 0x5000) { // 5XY0: Skips the next instruction if VX equals VY.
-                    skipNextInstrVxVy(self, opcode);
+                    self.skipNextInstrVxVy();
                 } else {
-                    unknownOpcode(self, opcode);
+                    self.unknownOpcode();
                 }
             },
             0x6000 => { // 6XNN: Sets VX to NN.
@@ -243,14 +258,14 @@ pub const Chip8 = struct {
                     0x800E => { // 8XYE: Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
 
                     },
-                    else => unknownOpcode(self, opcode),
+                    else => self.unknownOpcode(),
                 }
             },
             0x9000 => {
                 if (opcode & 0xF00F == 0x9000) { // 9XY0: Skips the next instruction if VX does not equal VY.
 
                 } else {
-                    unknownOpcode(self, opcode);
+                    self.unknownOpcode();
                 }
             },
             0xA000 => { // ANNN: Sets I to the address NNN
@@ -273,7 +288,7 @@ pub const Chip8 = struct {
                     0xE0A1 => { // EXA1: Skips the next instruction if the key stored in VX is not pressed.
 
                     },
-                    else => unknownOpcode(self, opcode),
+                    else => self.unknownOpcode(),
                 }
             },
             0xF000 => {
@@ -305,23 +320,23 @@ pub const Chip8 = struct {
                     0xF065 => { // FX65: Fills from V0 to VX (including VX) with values from memory, starting at address I. The offset from I is increased by 1 for each value read, but I itself is left unmodified.
 
                     },
-                    else => unknownOpcode(self, opcode),
+                    else => self.unknownOpcode(),
                 }
             },
-            else => unknownOpcode(self, opcode),
+            else => self.unknownOpcode(),
         }
     }
 
-    fn unknownOpcode(self: *Chip8, opcode: u16) void {
-        std.log.warn("Encountered unknown opcode {x}. Skipping.", .{opcode});
+    fn unknownOpcode(self: *Chip8) void {
+        std.log.warn("Encountered unknown opcode {x}. Skipping.", .{self.opcode});
         self.pc += 2;
     }
 
-    fn skipNextInstrVxNn(self: *Chip8, opcode: u16, if_eq: bool) void {
-        var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+    fn skipNextInstrVxNn(self: *Chip8, if_eq: bool) void {
+        var vx_index: u4 = @truncate(u4, (self.opcode & 0x0F00) >> 8);
         var vx_value: u8 = self.V[vx_index];
 
-        var nn: u8 = @truncate(u8, opcode & 0x00FF);
+        var nn: u8 = @truncate(u8, self.opcode & 0x00FF);
 
         switch (if_eq) {
             true => {
@@ -341,11 +356,11 @@ pub const Chip8 = struct {
         }
     }
 
-    fn skipNextInstrVxVy(self: *Chip8, opcode: u16) void {
-        var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+    fn skipNextInstrVxVy(self: *Chip8) void {
+        var vx_index: u4 = @truncate(u4, (self.opcode & 0x0F00) >> 8);
         var vx_value: u8 = self.V[vx_index];
 
-        var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
+        var vy_index: u4 = @truncate(u4, (self.opcode & 0x00F0) >> 4);
         var vy_value: u8 = self.V[vy_index];
 
         if (vx_value == vy_value) {
@@ -376,7 +391,8 @@ test "Clear Screen" {
 
     var current_pc: u16 = interpreter.pc;
 
-    try interpreter.decode(0x00E0);
+    interpreter.opcode = 0x00E0;
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
     try std.testing.expectEqualSlices(u8, ([_]u8{0} ** resolution)[0..], (interpreter.screen.*)[0..]);
 }
@@ -401,12 +417,14 @@ test "Skip Instruction VX Equal" {
 
     var current_pc: u16 = interpreter.pc;
 
-    try interpreter.decode(0x30AB);
+    interpreter.opcode = 0x30AB;
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
 
     current_pc = interpreter.pc;
 
-    try interpreter.decode(0x30BC);
+    interpreter.opcode = 0x30BC;
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
 }
 
@@ -430,12 +448,14 @@ test "Skip Instruction VX Not Equal" {
 
     var current_pc: u16 = interpreter.pc;
 
-    try interpreter.decode(0x40AB);
+    interpreter.opcode = 0x40AB;
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
 
     current_pc = interpreter.pc;
 
-    try interpreter.decode(0x40BC);
+    interpreter.opcode = 0x40BC;
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
 }
 
@@ -460,13 +480,15 @@ test "Skip Instruction VX VY" {
 
     var current_pc: u16 = interpreter.pc;
 
-    try interpreter.decode(0x5010);
+    interpreter.opcode = 0x5010;
+
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
 
     current_pc = interpreter.pc;
     interpreter.V[1] = 0xBC;
 
-    try interpreter.decode(0x5010);
+    try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
 }
 
@@ -486,13 +508,15 @@ test "Call Subroutine and Return" {
 
     try interpreter.initialize();
 
-    try interpreter.decode(0x2201);
+    interpreter.opcode = 0x2201;
+    try interpreter.decode();
 
     try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
     try std.testing.expectEqual(@as(u16, 0x200), interpreter.stack[0]);
     try std.testing.expectEqual(@as(u16, 0x201), interpreter.pc);
 
-    try interpreter.decode(0x00EE);
+    interpreter.opcode = 0x00EE;
+    try interpreter.decode();
 
     try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
     try std.testing.expectEqual(@as(u16, 0), interpreter.stack[0]);
@@ -517,13 +541,15 @@ test "7XNN" {
 
     interpreter.V[0] = 0x01;
 
-    try interpreter.decode(0x7001);
+    interpreter.opcode = 0x7001;
+    try interpreter.decode();
 
     try std.testing.expectEqual(@as(u8, 2), interpreter.V[0]);
 
     interpreter.V[0] = 0xFF;
 
-    try interpreter.decode(0x7002);
+    interpreter.opcode = 0x7002;
+    try interpreter.decode();
 
     try std.testing.expectEqual(@as(u8, 1), interpreter.V[0]);
     try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
