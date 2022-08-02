@@ -203,10 +203,16 @@ pub const Chip8 = struct {
                 }
             },
             0x6000 => { // 6XNN: Sets VX to NN.
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var nn: u8 = @truncate(u8, opcode & 0x00FF);
 
+                self.V[vx_index] = nn;
             },
             0x7000 => { // 7XNN: Adds NN to VX. (Carry flag is not changed);
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var nn: u8 = @truncate(u8, opcode & 0x00FF);
 
+                self.V[vx_index] +%= nn;
             },
             0x8000 => {
                 switch (opcode & 0xF00F) {
@@ -334,21 +340,21 @@ pub const Chip8 = struct {
             },
         }
     }
-};
 
-fn skipNextInstrVxVy(self: *Chip8, opcode: u16) void {
-    var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
-    var vx_value: u8 = self.V[vx_index];
+    fn skipNextInstrVxVy(self: *Chip8, opcode: u16) void {
+        var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+        var vx_value: u8 = self.V[vx_index];
 
-    var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
-    var vy_value: u8 = self.V[vy_index];
+        var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
+        var vy_value: u8 = self.V[vy_index];
 
-    if (vx_value == vy_value) {
-        self.pc += 4;
-    } else {
-        self.pc += 2;
+        if (vx_value == vy_value) {
+            self.pc += 4;
+        } else {
+            self.pc += 2;
+        }
     }
-}
+};
 
 test "Clear Screen" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
@@ -491,4 +497,34 @@ test "Call Subroutine and Return" {
     try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
     try std.testing.expectEqual(@as(u16, 0), interpreter.stack[0]);
     try std.testing.expectEqual(@as(u16, 0x200), interpreter.pc);
+}
+
+test "7XNN" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    interpreter.V[0] = 0x01;
+
+    try interpreter.decode(0x7001);
+
+    try std.testing.expectEqual(@as(u8, 2), interpreter.V[0]);
+
+    interpreter.V[0] = 0xFF;
+
+    try interpreter.decode(0x7002);
+
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
 }
