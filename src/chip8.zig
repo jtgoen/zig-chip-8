@@ -181,7 +181,13 @@ pub const Chip8 = struct {
                 }
             },
             0x1000 => { // 1NNN: Jumps to address NNN.
+                var address = opcode & 0x0FFF;
 
+                if (address < 0 or address >= 4096) {
+                    return Chip8Error.SegmentationFault;
+                }
+
+                self.pc = address;
             },
             0x2000 => { // 2NNN: Calls subroutine at NNN.
                 var sr_addr = opcode & 0x0FFF;
@@ -553,4 +559,25 @@ test "7XNN" {
 
     try std.testing.expectEqual(@as(u8, 1), interpreter.V[0]);
     try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
+}
+
+test "Jump NNN" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    interpreter.opcode = 0x1FF1;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, 0xFF1), interpreter.pc);
 }
