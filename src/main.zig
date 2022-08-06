@@ -1,5 +1,5 @@
 const std = @import("std");
-const chip8 = @import("chip8.zig");
+const chip8 = @import("chip8");
 const Chip8 = chip8.Chip8;
 
 pub fn main() anyerror!void {
