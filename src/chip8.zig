@@ -255,9 +255,11 @@ pub const Chip8 = struct {
                         self.V[vx_index] ^= self.V[vy_index];
                     },
                     0x8004 => { // 8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there is not.
-                        var sum: u16 = @as(u16, self.V[vx_index]) + @as(u16, self.V[vy_index]);
-                        self.V[0xF] = @truncate(u8, (sum & 0xF00) << 8);
-                        self.V[vx_index] = @truncate(u8, sum);
+                        if (@addWithOverflow(u8, self.V[vx_index], self.V[vy_index], &self.V[vx_index])) {
+                            self.V[0xF] = 1;
+                        } else {
+                            self.V[0xF] = 0;
+                        }
                     },
                     0x8005 => { // 8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
                         if (@subWithOverflow(u8, self.V[vx_index], self.V[vy_index], &self.V[vx_index]) == true) {
@@ -268,7 +270,7 @@ pub const Chip8 = struct {
                     },
                     0x8006 => { // 8XY6: Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
                         self.V[0xF] = self.V[vx_index] & 1;
-                        self.V[vx_index] >> 1;
+                        self.V[vx_index] >>= 1;
                     },
                     0x8007 => { // 8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.
                         if (@subWithOverflow(u8, self.V[vy_index], self.V[vx_index], &self.V[vx_index]) == true) {
@@ -279,7 +281,7 @@ pub const Chip8 = struct {
                     },
                     0x800E => { // 8XYE: Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
                         self.V[0xF] = self.V[vx_index] & 0b10000000;
-                        self.V[vx_index] << 1;
+                        self.V[vx_index] <<= 1;
                     },
                     else => self.unknownOpcode(),
                 }
