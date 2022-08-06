@@ -2,13 +2,13 @@ const std = @import("std");
 const chip8 = @import("chip8.zig");
 const Chip8 = chip8.Chip8;
 
-pub const TestHarness = struct {
+const TestHarness = struct {
     arena: std.heap.ArenaAllocator,
     allocator: std.mem.Allocator,
     interpreter: Chip8,
 };
 
-pub fn initTestHarness() anyerror!TestHarness {
+fn initTestHarness() anyerror!TestHarness {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
 
     const allocator = arena.allocator();
