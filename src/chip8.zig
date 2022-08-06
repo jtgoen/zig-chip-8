@@ -128,17 +128,17 @@ pub const Chip8 = struct {
         self.opcode = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
         std.log.info("Fetched Opcode: {x}", .{self.opcode});
 
-        var result = try decode();
+        var result = try self.decode();
 
         if (self.delay_timer > 0) {
             self.delay_timer -= 1;
             if (self.delay_timer == 0) {
-                std.log.info("Delay expired!");
+                std.log.info("Delay expired!", .{});
             }
         }
         if (self.sound_timer > 0) {
             if (self.sound_timer == 0) {
-                std.log.alert("BEEP!");
+                std.log.info("BEEP!", .{});
             }
         }
 
