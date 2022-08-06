@@ -14,6 +14,7 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("zig-chip-8", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
+    exe.addPackagePath("chip8", "libs/chip8/chip8.zig");
     exe.install();
 
     const run_cmd = exe.run();
