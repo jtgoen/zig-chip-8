@@ -130,6 +130,10 @@ pub const Chip8 = struct {
 
         var result = try self.decode();
 
+        if (@TypeOf(result) == Chip8Error) {
+            return result;
+        }
+
         if (self.delay_timer > 0) {
             self.delay_timer -= 1;
             if (self.delay_timer == 0) {
