@@ -2,9 +2,14 @@ const std = @import("std");
 const chip8 = @import("chip8.zig");
 const Chip8 = chip8.Chip8;
 
-test "Clear Screen" {
+pub const TestHarness = struct {
+    arena: std.heap.ArenaAllocator,
+    allocator: std.mem.Allocator,
+    interpreter: Chip8,
+};
+
+pub fn initTestHarness() anyerror!TestHarness {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
 
     const allocator = arena.allocator();
 
@@ -17,6 +22,18 @@ test "Clear Screen" {
     };
 
     try interpreter.initialize();
+
+    return TestHarness{
+        .arena = arena,
+        .allocator = allocator,
+        .interpreter = interpreter,
+    };
+}
+
+test "Clear Screen" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.screen.* = [_]u8{9} ** chip8.resolution;
 
@@ -29,20 +46,9 @@ test "Clear Screen" {
 }
 
 test "Skip Instruction VX Equal" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.V[0] = 0xAB;
 
@@ -60,20 +66,9 @@ test "Skip Instruction VX Equal" {
 }
 
 test "Skip Instruction VX Not Equal" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.V[0] = 0xBC;
 
@@ -91,20 +86,9 @@ test "Skip Instruction VX Not Equal" {
 }
 
 test "Skip Instruction VX VY" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.V[0] = 0xAB;
     interpreter.V[1] = 0xAB;
@@ -136,20 +120,9 @@ test "Skip Instruction VX VY" {
 }
 
 test "Call Subroutine and Return" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.opcode = 0x2201;
     try interpreter.decode();
@@ -167,20 +140,9 @@ test "Call Subroutine and Return" {
 }
 
 test "7XNN" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.V[0] = 0x01;
 
@@ -199,20 +161,9 @@ test "7XNN" {
 }
 
 test "Jump NNN" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.opcode = 0x1FF1;
     try interpreter.decode();
@@ -220,20 +171,9 @@ test "Jump NNN" {
 }
 
 test "8***" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.V[0] = 0b10;
     interpreter.V[1] = 0b01;
@@ -334,20 +274,9 @@ test "8***" {
 }
 
 test "ANNN" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.opcode = 0xADED;
     try interpreter.decode();
@@ -355,20 +284,9 @@ test "ANNN" {
 }
 
 test "BNNN" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     interpreter.V[0] = 0x01;
 
@@ -386,20 +304,9 @@ test "BNNN" {
 }
 
 test "CXNN" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
-    var interpreter = Chip8{
-        .memory = try allocator.create([4096]u8),
-        .V = try allocator.create([16]u8),
-        .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
-        .keypad = try allocator.create([16]u8),
-    };
-
-    try interpreter.initialize();
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
 
     var nn: u8 = 0b10101010;
     interpreter.opcode = 0xC000 + @as(u16, nn);
