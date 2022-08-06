@@ -260,16 +260,26 @@ pub const Chip8 = struct {
                         self.V[vx_index] = @truncate(u8, sum);
                     },
                     0x8005 => { // 8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
-
+                        if (@subWithOverflow(u8, self.V[vx_index], self.V[vy_index], &self.V[vx_index]) == true) {
+                            self.V[0xF] = 0;
+                        } else {
+                            self.V[0xF] = 1;
+                        }
                     },
                     0x8006 => { // 8XY6: Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
-
+                        self.V[0xF] = self.V[vx_index] & 1;
+                        self.V[vx_index] >> 1;
                     },
                     0x8007 => { // 8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.
-
+                        if (@subWithOverflow(u8, self.V[vy_index], self.V[vx_index], &self.V[vx_index]) == true) {
+                            self.V[0xF] = 0;
+                        } else {
+                            self.V[0xF] = 1;
+                        }
                     },
                     0x800E => { // 8XYE: Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
-
+                        self.V[0xF] = self.V[vx_index] & 0b10000000;
+                        self.V[vx_index] << 1;
                     },
                     else => self.unknownOpcode(),
                 }
