@@ -221,7 +221,7 @@ pub const Chip8 = struct {
             },
             0x5000 => {
                 if (opcode & 0xF00F == 0x5000) { // 5XY0: Skips the next instruction if VX equals VY.
-                    self.skipNextInstrVxVy();
+                    self.skipNextInstrVxVy(true);
                 } else {
                     self.unknownOpcode();
                 }
@@ -288,7 +288,7 @@ pub const Chip8 = struct {
             },
             0x9000 => {
                 if (opcode & 0xF00F == 0x9000) { // 9XY0: Skips the next instruction if VX does not equal VY.
-
+                    self.skipNextInstrVxVy(false);
                 } else {
                     self.unknownOpcode();
                 }
@@ -381,18 +381,27 @@ pub const Chip8 = struct {
         }
     }
 
-    fn skipNextInstrVxVy(self: *Chip8) void {
+    fn skipNextInstrVxVy(self: *Chip8, if_eq: bool) void {
         var vx_index: u4 = @truncate(u4, (self.opcode & 0x0F00) >> 8);
         var vx_value: u8 = self.V[vx_index];
 
         var vy_index: u4 = @truncate(u4, (self.opcode & 0x00F0) >> 4);
         var vy_value: u8 = self.V[vy_index];
 
-        if (vx_value == vy_value) {
-            self.pc += 4;
+        if (if_eq) {
+            if (vx_value == vy_value) {
+                self.pc += 4;
+            } else {
+                self.pc += 2;
+            }
         } else {
-            self.pc += 2;
+            if (vx_value != vy_value) {
+                self.pc += 4;
+            } else {
+                self.pc += 2;
+            }
         }
+        
     }
 };
 
@@ -504,17 +513,29 @@ test "Skip Instruction VX VY" {
     interpreter.V[1] = 0xAB;
 
     var current_pc: u16 = interpreter.pc;
-
     interpreter.opcode = 0x5010;
 
     try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
-
+    
     current_pc = interpreter.pc;
-    interpreter.V[1] = 0xBC;
+    interpreter.opcode = 0x9010;
 
     try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+
+    current_pc = interpreter.pc;
+    interpreter.V[1] = 0xBC;
+    interpreter.opcode = 0x5010;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+
+    current_pc = interpreter.pc;
+    interpreter.opcode = 0x9010;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
 }
 
 test "Call Subroutine and Return" {
