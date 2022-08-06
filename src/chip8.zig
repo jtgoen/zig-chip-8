@@ -145,8 +145,6 @@ pub const Chip8 = struct {
                 std.log.info("BEEP!", .{});
             }
         }
-
-        return result;
     }
 
     fn decode(self: *Chip8) Chip8Error!void {
