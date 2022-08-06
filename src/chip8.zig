@@ -34,7 +34,7 @@ pub const resolution = 64 * 32;
 pub const Chip8Error = error{
     SegmentationFault,
     SubroutineStackOverflow,
-    SubroutineStackEmpty
+    SubroutineStackEmpty,
 };
 
 pub const Chip8 = struct {
@@ -173,7 +173,7 @@ pub const Chip8 = struct {
                                 } else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096)) {
                                     return Chip8Error.SegmentationFault;
                                 }
-                                
+
                                 self.pc = self.stack[self.sp];
                                 self.stack[self.sp] = 0;
                             },
@@ -403,7 +403,6 @@ pub const Chip8 = struct {
                 self.pc += 2;
             }
         }
-        
     }
 };
 
@@ -519,7 +518,7 @@ test "Skip Instruction VX VY" {
 
     try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
-    
+
     current_pc = interpreter.pc;
     interpreter.opcode = 0x9010;
 
