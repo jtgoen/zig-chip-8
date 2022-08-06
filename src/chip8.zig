@@ -34,6 +34,7 @@ pub const resolution = 64 * 32;
 pub const Chip8Error = error{
     SegmentationFault,
     SubroutineStackOverflow,
+    SubroutineStackEmpty
 };
 
 pub const Chip8 = struct {
@@ -157,6 +158,12 @@ pub const Chip8 = struct {
                                 self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
+                                if (self.sp == 0) {
+                                    return Chip8Error.SubroutineStackEmpty;
+                                }
+
+                                self.sp -= 1;
+
                                 std.log.info("Returning from subroutine to address {x}", .{self.stack[self.sp]});
 
                                 if (!self.is_eti_660 and (self.stack[self.sp] < pc_init or self.stack[self.sp] >= 4096)) {
@@ -164,11 +171,9 @@ pub const Chip8 = struct {
                                 } else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096)) {
                                     return Chip8Error.SegmentationFault;
                                 }
+                                
                                 self.pc = self.stack[self.sp];
                                 self.stack[self.sp] = 0;
-                                if (self.sp > 0) {
-                                    self.sp -= 1;
-                                }
                             },
                             else => { // 0NNN: Calls machine code routine (RCA 1802 for COSMAC VIP) at address NNN. Not necessary for most ROMs.
 
@@ -199,14 +204,12 @@ pub const Chip8 = struct {
                     return Chip8Error.SegmentationFault;
                 }
 
-                if (self.stack[self.sp] != 0) {
-                    self.sp += 1;
-
-                    if (self.sp >= 16) {
-                        return Chip8Error.SubroutineStackOverflow;
-                    }
+                if (self.sp >= 16) {
+                    return Chip8Error.SubroutineStackOverflow;
                 }
+
                 self.stack[self.sp] = self.pc;
+                self.sp += 1;
 
                 self.pc = sr_addr;
             },
@@ -236,21 +239,25 @@ pub const Chip8 = struct {
                 self.V[vx_index] +%= nn;
             },
             0x8000 => {
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
                 switch (opcode & 0xF00F) {
                     0x8000 => { // 8XY0: Sets VX to the value of VY.
-
+                        self.V[vx_index] = self.V[vy_index];
                     },
                     0x8001 => { // 8XY1: Sets VX to VX or VY. (Bitwise OR operation);
-
+                        self.V[vx_index] |= self.V[vy_index];
                     },
                     0x8002 => { // 8XY2: Sets VX to VX and VY. (Bitwise AND operation);
-
+                        self.V[vx_index] &= self.V[vy_index];
                     },
                     0x8003 => { // 8XY3: Sets VX to VX xor VY.
-
+                        self.V[vx_index] ^= self.V[vy_index];
                     },
                     0x8004 => { // 8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there is not.
-
+                        var sum: u16 = @as(u16, self.V[vx_index]) + @as(u16, self.V[vy_index]);
+                        self.V[0xF] = @truncate(u8, (sum & 0xF00) << 8);
+                        self.V[vx_index] = @truncate(u8, sum);
                     },
                     0x8005 => { // 8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
 
@@ -517,7 +524,7 @@ test "Call Subroutine and Return" {
     interpreter.opcode = 0x2201;
     try interpreter.decode();
 
-    try std.testing.expectEqual(@as(u8, 0), interpreter.sp);
+    try std.testing.expectEqual(@as(u8, 1), interpreter.sp);
     try std.testing.expectEqual(@as(u16, 0x200), interpreter.stack[0]);
     try std.testing.expectEqual(@as(u16, 0x201), interpreter.pc);
 
