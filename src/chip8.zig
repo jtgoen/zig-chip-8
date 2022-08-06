@@ -1,4 +1,5 @@
 const std = @import("std");
+const rndgen = std.rand.DefaultPrng;
 const fs = std.fs;
 const file = fs.File;
 const file_reader = file.Reader;
@@ -296,13 +297,16 @@ pub const Chip8 = struct {
                 }
             },
             0xA000 => { // ANNN: Sets I to the address NNN
-
+                self.I = opcode & 0x0FFF;
             },
             0xB000 => { // BNNN: Jumps to the address NNN plus V0.
-
+                var addr: u12 = @as(u12, @truncate(u12, opcode & 0x0FFF));
+                var of = @addWithOverflow(u12, addr, self.V[0], &addr);
+                if (of == true) std.log.warn("{x} opcode jump overflowed {x}", .{opcode, self.V[0]});
+                self.pc = @as(u16, addr);
             },
             0xC000 => { // CXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
-
+                self.V[opcode & 0x0F00] = rndgen.init(0).random().int(u8) & @truncate(u8, opcode & 0x00FF);
             },
             0xD000 => { // DXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels. Each row of 8 pixels is read as bit-coded starting from memory location I; I value does not change after the execution of this instruction. As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that does not happen
 
@@ -735,4 +739,78 @@ test "8***" {
     try interpreter.decode();
     try std.testing.expectEqual(@as(u8, 0b100), interpreter.V[0]);
     try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
+}
+
+test "ANNN" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    interpreter.opcode = 0xADED;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, 0xDED), interpreter.I);
+}
+
+test "BNNN" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    interpreter.V[0] = 0x01;
+
+    interpreter.opcode = 0xBFFE;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, 0x0FFF), interpreter.pc);
+
+    try interpreter.initialize();
+
+    interpreter.V[0] = 0x01;
+
+    interpreter.opcode = 0xBFFF;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, 0), interpreter.pc);
+}
+
+test "CXNN" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    var nn: u8 = 0b10101010;
+    interpreter.opcode = 0xC000 + @as(u16, nn);
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0), ~nn & interpreter.V[0]);
 }
