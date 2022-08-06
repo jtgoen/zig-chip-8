@@ -280,7 +280,7 @@ pub const Chip8 = struct {
                         }
                     },
                     0x800E => { // 8XYE: Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
-                        self.V[0xF] = self.V[vx_index] & 0b10000000;
+                        self.V[0xF] = (self.V[vx_index] & 0b10000000) >> 7;
                         self.V[vx_index] <<= 1;
                     },
                     else => self.unknownOpcode(),
@@ -599,4 +599,118 @@ test "Jump NNN" {
     interpreter.opcode = 0x1FF1;
     try interpreter.decode();
     try std.testing.expectEqual(@as(u16, 0xFF1), interpreter.pc);
+}
+
+test "8***" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    var interpreter = Chip8{
+        .memory = try allocator.create([4096]u8),
+        .V = try allocator.create([16]u8),
+        .stack = try allocator.create([16]u16),
+        .screen = try allocator.create([resolution]u8),
+        .keypad = try allocator.create([16]u8),
+    };
+
+    try interpreter.initialize();
+
+    interpreter.V[0] = 0b10;
+    interpreter.V[1] = 0b01;
+
+    interpreter.opcode = 0x8010;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0b01), interpreter.V[0]);
+
+    interpreter.V[0] = 0b10;
+    interpreter.V[1] = 0b01;
+
+    interpreter.opcode = 0x8011;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0b11), interpreter.V[0]);
+
+    interpreter.V[0] = 0b101;
+    interpreter.V[1] = 0b011;
+
+    interpreter.opcode = 0x8012;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0b001), interpreter.V[0]);
+
+    interpreter.V[0] = 0b101;
+    interpreter.V[1] = 0b011;
+
+    interpreter.opcode = 0x8013;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0b110), interpreter.V[0]);
+
+    interpreter.V[0] = 0xFE;
+    interpreter.V[1] = 0x01;
+
+    interpreter.opcode = 0x8014;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xFF), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0xFF;
+    interpreter.V[1] = 0x01;
+
+    interpreter.opcode = 0x8014;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0x00), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0xFF;
+    interpreter.V[1] = 0x01;
+
+    interpreter.opcode = 0x8015;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xFE), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0x00;
+    interpreter.V[1] = 0x01;
+
+    interpreter.opcode = 0x8015;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xFF), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0b101;
+
+    interpreter.opcode = 0x8016;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0b010), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0x01;
+    interpreter.V[1] = 0xFF;
+
+    interpreter.opcode = 0x8017;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xFE), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0x01;
+    interpreter.V[1] = 0x00;
+
+    interpreter.opcode = 0x8017;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xFF), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
+
+    try interpreter.initialize();
+    interpreter.V[0] = 0b10000010;
+
+    interpreter.opcode = 0x801E;
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0b100), interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
 }
