@@ -323,21 +323,23 @@ pub const Chip8 = struct {
                 }
             },
             0xF000 => {
+                var vx_val = self.V[opcode & 0x0F00];
                 switch (opcode & 0xF0FF) {
                     0xF007 => { // FX07: Sets VX to the value of the delay timer.
-
+                        self.V[opcode & 0x0F00] = self.delay_timer;
                     },
                     0xF00A => { // FX0A: A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event);
 
                     },
                     0xF015 => { // FX15: Sets the delay timer to VX.
-
+                        self.delay_timer = vx_val;
                     },
                     0xF018 => { // FX18: Sets the sound timer to VX.
-
+                        self.sound_timer = vx_val;
                     },
                     0xF01E => { // FX1E: Adds VX to I. VF is not affected.
-
+                        var of = @addWithOverflow(u16, self.I, @as(u16, vx_val), &self.I);
+                        if (of == true) std.log.warn("{x} opcode FX1E overflowed I: {x} VX Val: {x}", .{opcode, self.I, vx_val});
                     },
                     0xF029 => { // FX29: Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
 

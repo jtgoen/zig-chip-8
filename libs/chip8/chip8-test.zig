@@ -313,3 +313,62 @@ test "CXNN" {
     try interpreter.decode();
     try std.testing.expectEqual(@as(u8, 0), ~nn & interpreter.V[0]);
 }
+
+test "FX07, FX15" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[0] = 0xAB;
+    interpreter.delay_timer = 0xBC;
+
+    interpreter.opcode = 0xF007;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xBC), interpreter.delay_timer);
+    try std.testing.expectEqual(interpreter.delay_timer, interpreter.V[0]);
+
+    interpreter.delay_timer = 0xAB;
+
+    interpreter.opcode = 0xF015;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xBC), interpreter.V[0]);
+    try std.testing.expectEqual(interpreter.V[0], interpreter.delay_timer);
+}
+
+test "FX18" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[0] = 0xAB;
+    interpreter.sound_timer = 0xBC;
+
+    interpreter.opcode = 0xF018;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 0xAB), interpreter.V[0]);
+    try std.testing.expectEqual(interpreter.V[0], interpreter.sound_timer);
+}
+
+test "FX1E" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[0] = 0x01;
+    interpreter.I = 0xFE;
+
+    interpreter.opcode = 0xF01E;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, 0xFF), interpreter.I);
+
+    interpreter.I = 0xFFFF;
+    
+    interpreter.opcode = 0xF01E;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u16, 0x0000), interpreter.I);
+}
