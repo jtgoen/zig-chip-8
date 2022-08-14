@@ -139,6 +139,17 @@ test "Call Subroutine and Return" {
     try std.testing.expectEqual(@as(u16, 0x200), interpreter.pc);
 }
 
+test "0NNN Skips Machine Code Instruction" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.opcode = 0x0FFF;
+    try interpreter.decode();
+
+    try std.testing.expectEqual(chip8.pc_init + 2, interpreter.pc);
+}
+
 test "7XNN" {
     var test_harness = try initTestHarness();
     defer test_harness.arena.deinit();
@@ -366,7 +377,7 @@ test "FX1E" {
     try std.testing.expectEqual(@as(u16, 0xFF), interpreter.I);
 
     interpreter.I = 0xFFFF;
-    
+
     interpreter.opcode = 0xF01E;
 
     try interpreter.decode();

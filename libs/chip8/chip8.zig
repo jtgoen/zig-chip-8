@@ -5,13 +5,13 @@ const file = fs.File;
 const file_reader = file.Reader;
 
 // Initial position for the program counter for most programs
-const pc_init: u16 = 0x200;
+pub const pc_init: u16 = 0x200;
 
 // Used for handling edge case of running ETI 660 programs,
 //  as they start the program counter at a different memory address
-const eti_660_pc_init: u16 = 0x600;
+pub const eti_660_pc_init: u16 = 0x600;
 
-const fontset = [_]u8{
+pub const fontset = [_]u8{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -179,12 +179,12 @@ pub const Chip8 = struct {
                                 self.stack[self.sp] = 0;
                             },
                             else => { // 0NNN: Calls machine code routine (RCA 1802 for COSMAC VIP) at address NNN. Not necessary for most ROMs.
-
+                                self.skipMachineCodeInstruction();
                             },
                         }
                     },
                     else => { // 0NNN: Calls machine code routine (RCA 1802 for COSMAC VIP) at address NNN. Not necessary for most ROMs.
-
+                        self.skipMachineCodeInstruction();
                     },
                 }
             },
@@ -302,7 +302,7 @@ pub const Chip8 = struct {
             0xB000 => { // BNNN: Jumps to the address NNN plus V0.
                 var addr: u12 = @as(u12, @truncate(u12, opcode & 0x0FFF));
                 var of = @addWithOverflow(u12, addr, self.V[0], &addr);
-                if (of == true) std.log.warn("{x} opcode jump overflowed {x}", .{opcode, self.V[0]});
+                if (of == true) std.log.warn("{x} opcode jump overflowed {x}", .{ opcode, self.V[0] });
                 self.pc = @as(u16, addr);
             },
             0xC000 => { // CXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
@@ -339,7 +339,7 @@ pub const Chip8 = struct {
                     },
                     0xF01E => { // FX1E: Adds VX to I. VF is not affected.
                         var of = @addWithOverflow(u16, self.I, @as(u16, vx_val), &self.I);
-                        if (of == true) std.log.warn("{x} opcode FX1E overflowed I: {x} VX Val: {x}", .{opcode, self.I, vx_val});
+                        if (of == true) std.log.warn("{x} opcode FX1E overflowed I: {x} VX Val: {x}", .{ opcode, self.I, vx_val });
                     },
                     0xF029 => { // FX29: Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
 
@@ -362,6 +362,11 @@ pub const Chip8 = struct {
 
     fn unknownOpcode(self: *Chip8) void {
         std.log.warn("Encountered unknown opcode {x}. Skipping.", .{self.opcode});
+        self.pc += 2;
+    }
+
+    fn skipMachineCodeInstruction(self: *Chip8) void {
+        std.log.warn("Encountered opcode 0{x}, which relies on executing machine-specific code. Ignoring.", .{self.opcode});
         self.pc += 2;
     }
 
