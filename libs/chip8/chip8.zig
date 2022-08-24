@@ -142,9 +142,8 @@ pub const Chip8 = struct {
             }
         }
         if (self.sound_timer > 0) {
-            if (self.sound_timer == 0) {
-                std.log.info("BEEP!", .{});
-            }
+            std.log.info("BEEP!", .{});
+            self.sound_timer -= 1;
         }
     }
 
