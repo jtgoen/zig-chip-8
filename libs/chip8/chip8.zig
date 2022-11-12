@@ -30,7 +30,10 @@ pub const fontset = [_]u8{
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 };
 
-pub const resolution = 64 * 32;
+pub const width = 64;
+pub const height = 32;
+
+pub const resolution = width * height;
 
 pub const Chip8Error = error{
     SegmentationFault,
