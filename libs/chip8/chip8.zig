@@ -260,14 +260,14 @@ pub const Chip8 = struct {
                         self.V[vx_index] ^= self.V[vy_index];
                     },
                     0x8004 => { // 8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there is not.
-                        if (@addWithOverflow(u8, self.V[vx_index], self.V[vy_index], &self.V[vx_index])) {
-                            self.V[0xF] = 1;
-                        } else {
-                            self.V[0xF] = 0;
-                        }
+                        var result = @addWithOverflow(self.V[vx_index], self.V[vy_index]);
+                        self.V[vx_index] = result[0];
+                        self.V[0xF] = @intCast(u8, result[1]);
                     },
                     0x8005 => { // 8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
-                        if (@subWithOverflow(u8, self.V[vx_index], self.V[vy_index], &self.V[vx_index]) == true) {
+                        var result = @subWithOverflow(self.V[vx_index], self.V[vy_index]);
+                        self.V[vx_index] = result[0];
+                        if (result[1] == 1) {
                             self.V[0xF] = 0;
                         } else {
                             self.V[0xF] = 1;
@@ -278,7 +278,9 @@ pub const Chip8 = struct {
                         self.V[vx_index] >>= 1;
                     },
                     0x8007 => { // 8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there is not.
-                        if (@subWithOverflow(u8, self.V[vy_index], self.V[vx_index], &self.V[vx_index]) == true) {
+                        var result = @subWithOverflow(self.V[vy_index], self.V[vx_index]);
+                        self.V[vx_index] = result[0];
+                        if (result[1] == 1) {
                             self.V[0xF] = 0;
                         } else {
                             self.V[0xF] = 1;
@@ -303,8 +305,11 @@ pub const Chip8 = struct {
             },
             0xB000 => { // BNNN: Jumps to the address NNN plus V0.
                 var addr: u12 = @as(u12, @truncate(u12, opcode & 0x0FFF));
-                var of = @addWithOverflow(u12, addr, self.V[0], &addr);
-                if (of == true) std.log.warn("{x} opcode jump overflowed {x}", .{ opcode, self.V[0] });
+
+                var result = @addWithOverflow(addr, self.V[0]);
+                addr = result[0];
+                var of = result[1];
+                if (of == 1) std.log.warn("{x} opcode jump overflowed {x}", .{ opcode, self.V[0] });
                 self.pc = @as(u16, addr);
             },
             0xC000 => { // CXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
@@ -340,8 +345,10 @@ pub const Chip8 = struct {
                         self.sound_timer = vx_val;
                     },
                     0xF01E => { // FX1E: Adds VX to I. VF is not affected.
-                        var of = @addWithOverflow(u16, self.I, @as(u16, vx_val), &self.I);
-                        if (of == true) std.log.warn("{x} opcode FX1E overflowed I: {x} VX Val: {x}", .{ opcode, self.I, vx_val });
+                        var result = @addWithOverflow(self.I, @as(u16, vx_val));
+                        self.I = result[0];
+                        var of = result[1];
+                        if (of == 1) std.log.warn("{x} opcode FX1E overflowed I: {x} VX Val: {x}", .{ opcode, self.I, vx_val });
                     },
                     0xF029 => { // FX29: Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
 
