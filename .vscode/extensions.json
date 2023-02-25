@@ -1,7 +1,6 @@
 {
     "recommendations": [
         "augusterame.zls-vscode",
-        "vadimcn.vscode-lldb"
-    ],
-    "comments": "NOTE: zls-vscode must be downloaded from the VSCode Marketplace, as it isn't currently on the Open VSX Marketplace"
+        "vadimcn.vscode-lldb" // Must be downloaded from VSCode Marketplace
+    ]
 }
