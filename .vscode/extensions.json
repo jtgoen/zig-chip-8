@@ -1,6 +1,6 @@
 {
     "recommendations": [
-        "augusterame.zls-vscode",
-        "vadimcn.vscode-lldb" // Must be downloaded from VSCode Marketplace
+        "augusterame.zls-vscode", // Must be downloaded from VSCode Marketplace
+        "vadimcn.vscode-lldb"
     ]
 }
