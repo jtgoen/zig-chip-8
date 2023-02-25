@@ -101,7 +101,7 @@ pub const Chip8 = struct {
 
         self.memory.* = std.mem.zeroes([4096]u8);
         var fontset_slice = self.memory[0x050..0x0A0];
-        for (fontset) |font_byte, i| {
+        for (fontset, 0..) |font_byte, i| {
             fontset_slice[i] = font_byte;
         }
 
