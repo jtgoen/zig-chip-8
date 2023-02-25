@@ -320,9 +320,9 @@ test "CXNN" {
     var interpreter = test_harness.interpreter;
 
     var nn: u8 = 0b10101010;
-    interpreter.opcode = 0xC000 + @as(u16, nn);
+    interpreter.opcode = 0xC100 + @as(u16, nn);
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u8, 0), ~nn & interpreter.V[0]);
+    try std.testing.expectEqual(@as(u8, 0), ~nn & interpreter.V[1]);
 }
 
 test "FX07, FX15" {
@@ -382,4 +382,24 @@ test "FX1E" {
 
     try interpreter.decode();
     try std.testing.expectEqual(@as(u16, 0x0000), interpreter.I);
+}
+
+test "FX33" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.I = 1;
+    interpreter.V[2] = 123;
+
+    interpreter.opcode = 0xF233;
+
+    try interpreter.decode();
+    try std.testing.expectEqual(@as(u8, 1), interpreter.memory[interpreter.I]);
+    try std.testing.expectEqual(@as(u8, 2), interpreter.memory[interpreter.I + 1]);
+    try std.testing.expectEqual(@as(u8, 3), interpreter.memory[interpreter.I + 2]);
+
+    interpreter.I = interpreter.memory.len;
+
+    try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
 }

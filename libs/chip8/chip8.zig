@@ -77,7 +77,6 @@ pub const Chip8 = struct {
 
     keypad: *[16]u8,
 
-    eti_660_start: u16 = 0x600,
     is_eti_660: bool = false,
 
     pub fn initialize(self: *Chip8) !void {
@@ -313,7 +312,8 @@ pub const Chip8 = struct {
                 self.pc = @as(u16, addr);
             },
             0xC000 => { // CXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
-                self.V[opcode & 0x0F00] = random.int(u8) & @truncate(u8, opcode & 0x00FF);
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                self.V[vx_index] = random.int(u8) & @truncate(u8, opcode & 0x00FF);
             },
             0xD000 => { // DXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels. Each row of 8 pixels is read as bit-coded starting from memory location I; I value does not change after the execution of this instruction. As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that does not happen
 
@@ -330,10 +330,11 @@ pub const Chip8 = struct {
                 }
             },
             0xF000 => {
-                var vx_val = self.V[opcode & 0x0F00];
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var vx_val = self.V[vx_index];
                 switch (opcode & 0xF0FF) {
                     0xF007 => { // FX07: Sets VX to the value of the delay timer.
-                        self.V[opcode & 0x0F00] = self.delay_timer;
+                        self.V[vx_index] = self.delay_timer;
                     },
                     0xF00A => { // FX0A: A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event);
 
@@ -354,7 +355,18 @@ pub const Chip8 = struct {
 
                     },
                     0xF033 => { // FX33: Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.);
+                        // ensure we'll be indexing into valid addresses
+                        if (self.I + 2 >= self.memory.len) {
+                            return Chip8Error.SegmentationFault;
+                        }
 
+                        var to_encode = vx_val;
+
+                        self.memory[self.I + 2] = to_encode % 10;
+                        to_encode /= 10;
+                        self.memory[self.I + 1] = to_encode % 10;
+                        to_encode /= 10;
+                        self.memory[self.I] = to_encode % 10;
                     },
                     0xF055 => { // FX55: Stores from V0 to VX (including VX) in memory, starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
 
