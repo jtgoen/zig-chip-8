@@ -73,14 +73,17 @@ pub const Chip8 = struct {
 
     // The screen with which to render the state of the program,
     //  representing a screen constrained by the resolution constant
-    screen: *[resolution]u8,
+    screen: *[resolution]u32,
+    // 2D view of screen buffer
+    screen_2d: *[height][]u32,
 
     keypad: *[16]u8,
 
     is_eti_660: bool = false,
 
     pub fn initialize(self: *Chip8) !void {
-        self.screen.* = std.mem.zeroes([resolution]u8);
+        self.screen.* = std.mem.zeroes([resolution]u32);
+        self.init_screen_2d();
         self.keypad.* = std.mem.zeroes([16]u8);
 
         self.opcode = 0;
@@ -106,6 +109,15 @@ pub const Chip8 = struct {
 
         self.delay_timer = 0;
         self.sound_timer = 0;
+    }
+
+    fn init_screen_2d(self: Chip8) void {
+        var i: usize = 0;
+        while (i < height) : (i += 1) {
+            var start_index = i * width;
+            var end_index = (i+1) * width;
+            self.screen_2d[i] = self.screen[start_index..end_index];
+        }
     }
 
     pub fn load(self: *Chip8, file_path: []const u8) !usize {
@@ -158,7 +170,7 @@ pub const Chip8 = struct {
                         switch (opcode & 0x00FF) {
                             0x00E0 => { // 00E0: Clears the screen.
                                 std.log.info("Clearing screen", .{});
-                                self.screen.* = std.mem.zeroes([resolution]u8);
+                                self.screen.* = std.mem.zeroes([resolution]u32);
                                 self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
