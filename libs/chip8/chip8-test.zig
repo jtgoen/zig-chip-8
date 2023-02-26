@@ -17,7 +17,8 @@ fn initTestHarness() anyerror!TestHarness {
         .memory = try allocator.create([4096]u8),
         .V = try allocator.create([16]u8),
         .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
+        .screen = try allocator.create([chip8.resolution]u32),
+        .screen_2d = try allocator.create([chip8.height][]u32),
         .keypad = try allocator.create([16]u8),
     };
 
@@ -35,14 +36,14 @@ test "Clear Screen" {
     defer test_harness.arena.deinit();
     var interpreter = test_harness.interpreter;
 
-    interpreter.screen.* = [_]u8{9} ** chip8.resolution;
+    interpreter.screen.* = [_]u32{9} ** chip8.resolution;
 
     var current_pc: u16 = interpreter.pc;
 
     interpreter.opcode = 0x00E0;
     try interpreter.decode();
     try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
-    try std.testing.expectEqualSlices(u8, ([_]u8{0} ** chip8.resolution)[0..], (interpreter.screen.*)[0..]);
+    try std.testing.expectEqualSlices(u32, ([_]u32{0} ** chip8.resolution)[0..], (interpreter.screen.*)[0..]);
 }
 
 test "Skip Instruction VX Equal" {
@@ -402,4 +403,15 @@ test "FX33" {
     interpreter.I = interpreter.memory.len;
 
     try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
+}
+
+test "2D Screen View Updates" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    const pixel_index = 64;
+    interpreter.screen[pixel_index] = 999;
+
+    try std.testing.expectEqual(interpreter.screen[pixel_index], interpreter.screen_2d[1][0]);
 }
