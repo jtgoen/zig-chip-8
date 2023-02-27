@@ -405,6 +405,54 @@ test "FX33" {
     try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
 }
 
+test "FX55" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.I = interpreter.I + 5;
+
+    var vals = [_]u8{ 1, 2, 3 };
+    var v_slice = interpreter.V[0..3];
+
+    for (vals, 0..) |_, i| {
+        v_slice[i] = vals[i];
+    }
+
+    interpreter.opcode = 0xF255;
+
+    try interpreter.decode();
+
+    var mem_slice = interpreter.memory[interpreter.I .. interpreter.I + 3];
+    for (vals, 0..) |val, i| {
+        try std.testing.expectEqual(val, mem_slice[i]);
+    }
+}
+
+test "FX65" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.I = interpreter.I + 5;
+
+    var vals = [_]u8{ 1, 2, 3 };
+    var mem_slice = interpreter.memory[interpreter.I .. interpreter.I + 3];
+
+    for (vals, 0..) |val, i| {
+        mem_slice[i] = val;
+    }
+
+    interpreter.opcode = 0xF265;
+
+    try interpreter.decode();
+
+    var v_slice = interpreter.V[0..3];
+    for (vals, 0..) |val, i| {
+        try std.testing.expectEqual(val, v_slice[i]);
+    }
+}
+
 test "2D Screen View Updates" {
     var test_harness = try initTestHarness();
     defer test_harness.arena.deinit();
