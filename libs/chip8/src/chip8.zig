@@ -11,6 +11,8 @@ pub const pc_init: u16 = 0x200;
 //  as they start the program counter at a different memory address
 pub const eti_660_pc_init: u16 = 0x600;
 
+pub const mem_size = 4096;
+
 pub const fontset = [_]u8{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -35,22 +37,18 @@ pub const height = 32;
 
 pub const resolution = width * height;
 
-pub const Chip8Error = error{
-    SegmentationFault,
-    SubroutineStackOverflow,
-    SubroutineStackEmpty,
-};
+pub const Chip8Error = error{ IndexOutOfBounds, SegmentationFault, SubroutineStackOverflow, SubroutineStackEmpty, UnexpectedError };
 
 pub const Chip8 = struct {
     // All accessible memory
-    memory: *[4096]u8,
+    memory: *[mem_size]u8,
 
     // General purpose registers, labeled V0-VF (VF is for the "carry flag")
     V: *[16]u8,
 
     // Index register, generally used for storing memory addresses,
     //  so only lowest 12 bits are usually used
-    I: u16 = 0,
+    I: u16 = pc_init,
 
     // Special purpose register for timing delays, decremented at
     // a rate of 60Hz when non-zero
@@ -82,9 +80,9 @@ pub const Chip8 = struct {
     is_eti_660: bool = false,
 
     pub fn initialize(self: *Chip8) !void {
-        self.screen.* = std.mem.zeroes([resolution]u32);
+        self.screen.* = [_]u32{0} ** resolution;
         self.init_screen_2d();
-        self.keypad.* = std.mem.zeroes([16]u8);
+        self.keypad.* = [_]u8{0} ** self.keypad.len;
 
         self.opcode = 0;
 
@@ -96,12 +94,12 @@ pub const Chip8 = struct {
             self.pc = pc_init;
         }
 
-        self.stack.* = std.mem.zeroes([16]u16);
+        self.stack.* = [_]u16{0} ** self.stack.len;
         self.sp = 0;
 
-        self.V.* = std.mem.zeroes([16]u8);
+        self.V.* = [_]u8{0} ** self.V.len;
 
-        self.memory.* = std.mem.zeroes([4096]u8);
+        self.memory.* = [_]u8{0} ** self.memory.len;
         var fontset_slice = self.memory[0x050..0x0A0];
         for (fontset, 0..) |font_byte, i| {
             fontset_slice[i] = font_byte;
@@ -115,7 +113,7 @@ pub const Chip8 = struct {
         var i: usize = 0;
         while (i < height) : (i += 1) {
             var start_index = i * width;
-            var end_index = (i+1) * width;
+            var end_index = (i + 1) * width;
             self.screen_2d[i] = self.screen[start_index..end_index];
         }
     }
@@ -170,7 +168,7 @@ pub const Chip8 = struct {
                         switch (opcode & 0x00FF) {
                             0x00E0 => { // 00E0: Clears the screen.
                                 std.log.info("Clearing screen", .{});
-                                self.screen.* = std.mem.zeroes([resolution]u32);
+                                self.screen.* = [_]u32{0} ** resolution;
                                 self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
@@ -182,9 +180,9 @@ pub const Chip8 = struct {
 
                                 std.log.info("Returning from subroutine to address {x}", .{self.stack[self.sp]});
 
-                                if (!self.is_eti_660 and (self.stack[self.sp] < pc_init or self.stack[self.sp] >= 4096)) {
+                                if (!self.is_eti_660 and (self.stack[self.sp] < pc_init or self.stack[self.sp] >= self.memory.len)) {
                                     return Chip8Error.SegmentationFault;
-                                } else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= 4096)) {
+                                } else if (self.is_eti_660 and (self.stack[self.sp] < eti_660_pc_init or self.stack[self.sp] >= self.memory.len)) {
                                     return Chip8Error.SegmentationFault;
                                 }
 
@@ -204,7 +202,7 @@ pub const Chip8 = struct {
             0x1000 => { // 1NNN: Jumps to address NNN.
                 var address = opcode & 0x0FFF;
 
-                if (address < 0 or address >= 4096) {
+                if (address < 0 or address >= self.memory.len) {
                     return Chip8Error.SegmentationFault;
                 }
 
@@ -214,9 +212,9 @@ pub const Chip8 = struct {
                 var sr_addr = opcode & 0x0FFF;
                 std.log.info("Calling subroutine at address {x}", .{sr_addr});
 
-                if (!self.is_eti_660 and (sr_addr < pc_init or sr_addr >= 4096)) {
+                if (!self.is_eti_660 and (sr_addr < pc_init or sr_addr >= self.memory.len)) {
                     return Chip8Error.SegmentationFault;
-                } else if (self.is_eti_660 and (sr_addr < eti_660_pc_init or sr_addr >= 4096)) {
+                } else if (self.is_eti_660 and (sr_addr < eti_660_pc_init or sr_addr >= self.memory.len)) {
                     return Chip8Error.SegmentationFault;
                 }
 
@@ -344,7 +342,9 @@ pub const Chip8 = struct {
             0xF000 => {
                 var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
                 var vx_val = self.V[vx_index];
-                switch (opcode & 0xF0FF) {
+
+                var f_oc_masked = opcode & 0xF0FF;
+                switch (f_oc_masked) {
                     0xF007 => { // FX07: Sets VX to the value of the delay timer.
                         self.V[vx_index] = self.delay_timer;
                     },
@@ -380,11 +380,30 @@ pub const Chip8 = struct {
                         to_encode /= 10;
                         self.memory[self.I] = to_encode % 10;
                     },
-                    0xF055 => { // FX55: Stores from V0 to VX (including VX) in memory, starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
+                    0xF055, 0xF065 => {
+                        var vx_inclusive = vx_index + 1;
+                        var v_slice = self.V[0..vx_inclusive];
 
-                    },
-                    0xF065 => { // FX65: Fills from V0 to VX (including VX) with values from memory, starting at address I. The offset from I is increased by 1 for each value read, but I itself is left unmodified.
+                        if (self.memory.len <= self.I + vx_index) {
+                            std.log.warn("{x} opcode requested to write past addressable memory bounds. Begin: {d} End: {d}", .{ opcode, self.I, self.I + vx_index });
+                            return Chip8Error.SegmentationFault;
+                        }
+                        var mem_slice = self.memory[self.I .. self.I + vx_inclusive];
 
+                        for (v_slice, 0..) |v_val, i| {
+                            switch (f_oc_masked) {
+                                0xF055 => { // FX55: Stores from V0 to VX (including VX) in memory, starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
+                                    mem_slice[i] = v_val;
+                                },
+                                0xF065 => { // FX65: Fills from V0 to VX (including VX) with values from memory, starting at address I. The offset from I is increased by 1 for each value read, but I itself is left unmodified.
+                                    v_slice[i] = mem_slice[i];
+                                },
+                                else => {
+                                    std.log.err("Encountered unexpected opcode case. Should not have reached here. Code: {x}", .{self.opcode});
+                                    return Chip8Error.UnexpectedError;
+                                },
+                            }
+                        }
                     },
                     else => self.unknownOpcode(),
                 }
