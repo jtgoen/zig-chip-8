@@ -7,10 +7,10 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/zig-out/bin/chip8",
+            "name": "Chip-8 Library Debug",
+            "program": "${workspaceFolder}/libs/chip8/zig-out/bin/chip8",
             "args": ["/Users/jtgoen/bin/zig"],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}/libs/chip8"
         }
     ]
 }

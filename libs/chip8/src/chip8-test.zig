@@ -413,5 +413,8 @@ test "2D Screen View Updates" {
     const pixel_index = 64;
     interpreter.screen[pixel_index] = 999;
 
-    try std.testing.expectEqual(interpreter.screen[pixel_index], interpreter.screen_2d[1][0]);
+    var x: u8 = pixel_index / chip8.width;
+    var y: u8 = pixel_index % chip8.width;
+
+    try std.testing.expectEqual(interpreter.screen[pixel_index], interpreter.screen_2d[x][y]);
 }
