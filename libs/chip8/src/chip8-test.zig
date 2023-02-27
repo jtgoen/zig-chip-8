@@ -453,6 +453,20 @@ test "FX65" {
     }
 }
 
+test "FX55/65 SegFault" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.I = interpreter.memory.len - 2;
+
+    interpreter.opcode = 0xF255;
+    try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
+
+    interpreter.opcode = 0xF265;
+    try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
+}
+
 test "2D Screen View Updates" {
     var test_harness = try initTestHarness();
     defer test_harness.arena.deinit();
