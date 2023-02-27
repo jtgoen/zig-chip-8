@@ -113,7 +113,7 @@ pub const Chip8 = struct {
         var i: usize = 0;
         while (i < height) : (i += 1) {
             var start_index = i * width;
-            var end_index = (i + 1) * width;
+            var end_index = start_index + width;
             self.screen_2d[i] = self.screen[start_index..end_index];
         }
     }
