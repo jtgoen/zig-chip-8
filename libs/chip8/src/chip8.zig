@@ -330,12 +330,19 @@ pub const Chip8 = struct {
 
             },
             0xE000 => {
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var key_index = self.V[vx_index];
+
                 switch (opcode & 0xF0FF) {
                     0xE09E => { // EX9E: Skips the next instruction if the key stored in VX is pressed.
-
+                        if (self.keypad[key_index] != 0) {
+                            self.pc += 2;
+                        }
                     },
                     0xE0A1 => { // EXA1: Skips the next instruction if the key stored in VX is not pressed.
-
+                        if (self.keypad[key_index] == 0) {
+                            self.pc += 2;
+                        }
                     },
                     else => self.unknownOpcode(),
                 }
