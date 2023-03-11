@@ -510,11 +510,11 @@ test "DXYN" {
     var x_index = interpreter.V[1];
     var y_index = interpreter.V[2];
 
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 1, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 0, 0, 0, 0, 1 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 0, 0, 0, 0, 1 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 0, 0, 0, 0, 1 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 1, 1, 1, 1 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1, 1 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
 }
 
 test "2D Screen View Updates" {
