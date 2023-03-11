@@ -495,7 +495,7 @@ test "EX9E, EXA1" {
     try std.testing.expectEqual(current_pc + 2, interpreter.pc);
 }
 
-test "DXYN" {
+test "DXYN draws sprite" {
     var test_harness = try initTestHarness();
     defer test_harness.arena.deinit();
     var interpreter = test_harness.interpreter;
@@ -510,11 +510,69 @@ test "DXYN" {
     var x_index = interpreter.V[1];
     var y_index = interpreter.V[2];
 
+    // Check that '0' glyph was drawn to the screen
     try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
     try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
     try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
     try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
     try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1, 1 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
+
+    // Confirm that "unset" flag is off
+}
+
+test "DXYN draws portion of sprite in screen bounds" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[1] = chip8.width - 7;
+    interpreter.V[2] = chip8.height - 4;
+    interpreter.I = 0x50; // Index of font glyph '0'
+
+    interpreter.opcode = 0xD125;
+    try interpreter.decode();
+
+    var x_index = interpreter.V[1];
+    var y_index = interpreter.V[2];
+
+    // Check that '0' glyph was drawn to the screen
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index..chip8.width]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0 }, interpreter.screen_2d[y_index + 1][x_index..chip8.width]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0 }, interpreter.screen_2d[y_index + 2][x_index..chip8.width]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0 }, interpreter.screen_2d[y_index + 3][x_index..chip8.width]);
+
+    // TODO: Confirm that "unset" flag is off
+}
+
+test "DXYN does not draw sprite that is outside of screen bounds" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[1] = chip8.width + 1;
+    interpreter.V[2] = chip8.height + 1;
+    interpreter.I = 0x50; // Index of font glyph '0'
+
+    interpreter.opcode = 0xD125;
+    try interpreter.decode();
+
+    // TODO: Confirm that "unset" flag is unchanged (or just on? need to think about behavior here)
+}
+
+test "DXYN mapping unaddressable sprite data returns error" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[1] = 2;
+    interpreter.V[2] = 4;
+    interpreter.I = chip8.mem_size - 10; // Starting index within addressable memory, but ends outside
+
+    interpreter.opcode = 0xD125;
+
+    try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
+
+    // TODO: Confirm that "unset" flag is unchanged
 }
 
 test "2D Screen View Updates" {
