@@ -464,6 +464,37 @@ test "FX55/65 SegFault" {
     try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
 }
 
+test "EX9E, EXA1" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[1] = 2;
+    interpreter.keypad[2] = 1;
+
+    var current_pc = interpreter.pc;
+    interpreter.opcode = 0xE19E;
+    try interpreter.decode();
+    try std.testing.expectEqual(current_pc + 2, interpreter.pc);
+
+    current_pc = interpreter.pc;
+    interpreter.opcode = 0xE1A1;
+    try interpreter.decode();
+    try std.testing.expectEqual(current_pc, interpreter.pc);
+
+    interpreter.keypad[2] = 0;
+
+    current_pc = interpreter.pc;
+    interpreter.opcode = 0xE19E;
+    try interpreter.decode();
+    try std.testing.expectEqual(current_pc, interpreter.pc);
+
+    current_pc = interpreter.pc;
+    interpreter.opcode = 0xE1A1;
+    try interpreter.decode();
+    try std.testing.expectEqual(current_pc + 2, interpreter.pc);
+}
+
 test "2D Screen View Updates" {
     var test_harness = try initTestHarness();
     defer test_harness.arena.deinit();
