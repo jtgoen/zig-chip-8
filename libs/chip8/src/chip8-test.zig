@@ -38,11 +38,8 @@ test "Clear Screen" {
 
     interpreter.screen.* = [_]u32{9} ** chip8.resolution;
 
-    var current_pc: u16 = interpreter.pc;
-
     interpreter.opcode = 0x00E0;
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
     try std.testing.expectEqualSlices(u32, ([_]u32{0} ** chip8.resolution)[0..], (interpreter.screen.*)[0..]);
 }
 
@@ -57,13 +54,13 @@ test "Skip Instruction VX Equal" {
 
     interpreter.opcode = 0x30AB;
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+    try std.testing.expectEqual(current_pc + 2, interpreter.pc);
 
     current_pc = interpreter.pc;
 
     interpreter.opcode = 0x30BC;
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+    try std.testing.expectEqual(current_pc, interpreter.pc);
 }
 
 test "Skip Instruction VX Not Equal" {
@@ -77,13 +74,13 @@ test "Skip Instruction VX Not Equal" {
 
     interpreter.opcode = 0x40AB;
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+    try std.testing.expectEqual(current_pc + 2, interpreter.pc);
 
     current_pc = interpreter.pc;
 
     interpreter.opcode = 0x40BC;
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+    try std.testing.expectEqual(current_pc, interpreter.pc);
 }
 
 test "Skip Instruction VX VY" {
@@ -98,26 +95,26 @@ test "Skip Instruction VX VY" {
     interpreter.opcode = 0x5010;
 
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+    try std.testing.expectEqual(current_pc + 2, interpreter.pc);
 
     current_pc = interpreter.pc;
     interpreter.opcode = 0x9010;
 
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+    try std.testing.expectEqual(current_pc, interpreter.pc);
 
     current_pc = interpreter.pc;
     interpreter.V[1] = 0xBC;
     interpreter.opcode = 0x5010;
 
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 2), interpreter.pc);
+    try std.testing.expectEqual(current_pc, interpreter.pc);
 
     current_pc = interpreter.pc;
     interpreter.opcode = 0x9010;
 
     try interpreter.decode();
-    try std.testing.expectEqual(@as(u16, current_pc + 4), interpreter.pc);
+    try std.testing.expectEqual(current_pc + 2, interpreter.pc);
 }
 
 test "Call Subroutine and Return" {

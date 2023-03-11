@@ -141,6 +141,8 @@ pub const Chip8 = struct {
         self.opcode = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
         std.log.info("Fetched Opcode: {x}", .{self.opcode});
 
+        self.pc += 2;
+
         var result = try self.decode();
 
         if (@TypeOf(result) == Chip8Error) {
@@ -169,7 +171,6 @@ pub const Chip8 = struct {
                             0x00E0 => { // 00E0: Clears the screen.
                                 std.log.info("Clearing screen", .{});
                                 self.screen.* = [_]u32{0} ** resolution;
-                                self.pc += 2;
                             },
                             0x00EE => { // 00EE: Returns from a subroutine.
                                 if (self.sp == 0) {
@@ -431,15 +432,11 @@ pub const Chip8 = struct {
         switch (if_eq) {
             true => {
                 if (vx_value == nn) {
-                    self.pc += 4;
-                } else {
                     self.pc += 2;
                 }
             },
             false => {
                 if (vx_value != nn) {
-                    self.pc += 4;
-                } else {
                     self.pc += 2;
                 }
             },
@@ -453,18 +450,17 @@ pub const Chip8 = struct {
         var vy_index: u4 = @truncate(u4, (self.opcode & 0x00F0) >> 4);
         var vy_value: u8 = self.V[vy_index];
 
-        if (if_eq) {
-            if (vx_value == vy_value) {
-                self.pc += 4;
-            } else {
-                self.pc += 2;
-            }
-        } else {
-            if (vx_value != vy_value) {
-                self.pc += 4;
-            } else {
-                self.pc += 2;
-            }
+        switch (if_eq) {
+            true => {
+                if (vx_value == vy_value) {
+                    self.pc += 2;
+                }
+            },
+            false => {
+                if (vx_value != vy_value) {
+                    self.pc += 2;
+                }
+            },
         }
     }
 };
