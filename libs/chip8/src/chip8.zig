@@ -341,14 +341,20 @@ pub const Chip8 = struct {
 
                     var sprite_mem_end: u16 = sprite_mem_start + (@as(u16, sprite_width) * @as(u16, sprite_height));
                     if (sprite_mem_end >= mem_size) {
-                        std.log.err("Opcode {x} attempted to map sprite data that spanned beyond mappable memory. Start: {d}, End: {d}", .{ opcode, sprite_mem_start, sprite_mem_end });
+                        std.log.warn("Opcode {x} attempted to map sprite data that spanned beyond mappable memory. Start: {d}, End: {d}", .{ opcode, sprite_mem_start, sprite_mem_end });
                         return Chip8Error.SegmentationFault;
                     }
 
                     var attempt_sprite_end_x = sprite_start_x + (sprite_width);
+                    if (attempt_sprite_end_x > width) {
+                        std.log.warn("Attempted to draw a sprite outside of the horizontal screen bounds: Start: {d} End: {d} \nA partial sprite will be drawn in the viewable screen.", .{ sprite_start_x, attempt_sprite_end_x });
+                    }
                     var sprite_end_x = std.math.min(attempt_sprite_end_x, width);
 
                     var attempt_sprite_end_y = sprite_start_y + (sprite_height);
+                    if (attempt_sprite_end_y > height) {
+                        std.log.warn("Attempted to draw a sprite outside of the vertical screen bounds: Start: {d} End: {d} \nA partial sprite will be drawn in the viewable screen.", .{ sprite_start_y, attempt_sprite_end_y });
+                    }
                     var sprite_end_y = std.math.min(attempt_sprite_end_y, height);
 
                     var vert_index = sprite_start_y;
@@ -372,6 +378,7 @@ pub const Chip8 = struct {
                         }
 
                         vert_index += 1;
+                        curr_mem_index += 1;
                     }
 
                     if (unset) {
