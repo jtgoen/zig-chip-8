@@ -495,6 +495,28 @@ test "EX9E, EXA1" {
     try std.testing.expectEqual(current_pc + 2, interpreter.pc);
 }
 
+test "DXYN" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[1] = 2;
+    interpreter.V[2] = 4;
+    interpreter.I = 0x50; // Index of font glyph '0'
+
+    interpreter.opcode = 0xD125;
+    try interpreter.decode();
+
+    var x_index = interpreter.V[1];
+    var y_index = interpreter.V[2];
+
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 1, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 0, 0, 0, 0, 1 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 0, 0, 0, 0, 1 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 0, 0, 0, 0, 1 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 1, 1, 1, 1 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
+}
+
 test "2D Screen View Updates" {
     var test_harness = try initTestHarness();
     defer test_harness.arena.deinit();
