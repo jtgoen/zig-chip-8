@@ -326,8 +326,60 @@ pub const Chip8 = struct {
                 var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
                 self.V[vx_index] = random.int(u8) & @truncate(u8, opcode & 0x00FF);
             },
-            0xD000 => { // DXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels. Each row of 8 pixels is read as bit-coded starting from memory location I; I value does not change after the execution of this instruction. As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that does not happen
+            0xD000 => { // DXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
+                // Each row of 8 pixels is read as bit-coded starting from memory location I; I value does not change after the execution of this instruction.
+                // As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that does not happen
+                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var sprite_width = 8;
+                var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
+                var sprite_height = @truncate(u4, (opcode & 0x000F));
+                var sprite_start_x = self.V[vx_index];
+                var sprite_start_y = self.V[vy_index];
 
+                if (sprite_height != 0) {
+                    var sprite_mem_start = self.I;
+
+                    var sprite_mem_end = sprite_mem_start + (sprite_width * sprite_height);
+                    if (sprite_mem_end >= mem_size) {
+                        std.log.err("Opcode {x} attempted to map sprite data that spanned beyond mappable memory. Start: {d}, End: {d}", .{ opcode, sprite_mem_start, sprite_mem_end });
+                        return Chip8Error.SegmentationFault;
+                    }
+
+                    var attempt_sprite_end_x = sprite_start_x + (sprite_width - 1);
+                    var sprite_end_x = std.math.min(attempt_sprite_end_x, width - 1);
+
+                    var attempt_sprite_end_y = sprite_start_y + (sprite_height - 1);
+                    var sprite_end_y = std.math.min(attempt_sprite_end_y, height - 1);
+
+                    var vert_index = sprite_start_y;
+
+                    var curr_mem_index = sprite_mem_start;
+                    var unset = false;
+                    while (vert_index <= sprite_end_y) {
+                        var sprite_row_screen_slice = self.screen_2d[vert_index][sprite_start_x..sprite_end_x];
+
+                        var sprite_row_mem_bits = self.memory[curr_mem_index];
+                        var bit_index = 0;
+                        while (bit_index <= sprite_row_screen_slice.len) {
+                            var mem_pixel = sprite_row_mem_bits & 1;
+                            if (mem_pixel == 0 and (sprite_row_screen_slice[bit_index] == 1)) {
+                                unset = true;
+                            }
+                            sprite_row_screen_slice[bit_index] = mem_pixel;
+
+                            sprite_row_mem_bits >>= 1;
+                            bit_index += 1;
+                        }
+                    }
+
+                    if (unset) {
+                        self.V[0xF] = 1;
+                    } else {
+                        self.V[0xF] = 0;
+                    }
+                } else {
+                    std.log.warn("Opcode {} attempted to draw sprite with height 0. Skipping draw step", .{opcode});
+                }
             },
             0xE000 => {
                 var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
