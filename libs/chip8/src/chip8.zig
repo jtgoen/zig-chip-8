@@ -336,7 +336,7 @@ pub const Chip8 = struct {
                 var sprite_start_x = self.V[vx_index];
                 var sprite_start_y = self.V[vy_index];
 
-                if (sprite_height != 0) {
+                if (sprite_height != 0 and sprite_start_x < width and sprite_start_y < height) {
                     var sprite_mem_start = self.I;
 
                     var sprite_mem_end: u16 = sprite_mem_start + (@as(u16, sprite_width) * @as(u16, sprite_height));
@@ -346,7 +346,9 @@ pub const Chip8 = struct {
                     }
 
                     var attempt_sprite_end_x = sprite_start_x + (sprite_width);
+                    var x_truncated: u8 = 0;
                     if (attempt_sprite_end_x > width) {
+                        x_truncated = attempt_sprite_end_x - width;
                         std.log.warn("Attempted to draw a sprite outside of the horizontal screen bounds: Start: {d} End: {d} \nA partial sprite will be drawn in the viewable screen.", .{ sprite_start_x, attempt_sprite_end_x });
                     }
                     var sprite_end_x = std.math.min(attempt_sprite_end_x, width);
@@ -365,8 +367,15 @@ pub const Chip8 = struct {
                         var sprite_row_screen_slice = self.screen_2d[vert_index][sprite_start_x..sprite_end_x];
 
                         var sprite_row_mem_bits = self.memory[curr_mem_index];
-                        var bit_index: u8 = 0;
-                        while (bit_index < sprite_row_screen_slice.len) {
+                        var xt_temp: u8 = 0;
+                        while (xt_temp < x_truncated) {
+                            // TODO hacky workaround since I can't seem to find a way to explain to the compiler
+                            // that x_truncated will never be more than a u3 in size
+                            sprite_row_mem_bits >>= 1;
+                            xt_temp += 1;
+                        }
+                        var bit_index = sprite_row_screen_slice.len - 1;
+                        while (bit_index > 0) {
                             var mem_pixel = sprite_row_mem_bits & 1;
                             if (mem_pixel == 0 and (sprite_row_screen_slice[bit_index] == 1)) {
                                 unset = true;
@@ -374,8 +383,15 @@ pub const Chip8 = struct {
                             sprite_row_screen_slice[bit_index] = mem_pixel;
 
                             sprite_row_mem_bits >>= 1;
-                            bit_index += 1;
+                            bit_index -= 1;
                         }
+
+                        //TODO this is gross
+                        var mem_pixel = sprite_row_mem_bits & 1;
+                        if (mem_pixel == 0 and (sprite_row_screen_slice[bit_index] == 1)) {
+                            unset = true;
+                        }
+                        sprite_row_screen_slice[bit_index] = mem_pixel;
 
                         vert_index += 1;
                         curr_mem_index += 1;
@@ -386,8 +402,12 @@ pub const Chip8 = struct {
                     } else {
                         self.V[0xF] = 0;
                     }
-                } else {
+                } else if (sprite_height == 0) {
                     std.log.warn("Opcode {} attempted to draw sprite with height 0. Skipping draw step", .{opcode});
+                } else if (sprite_start_x >= width) {
+                    std.log.warn("Opcode {} attempted to draw sprite with starting X:{d} outside window. Skipping draw step", .{ opcode, sprite_start_x });
+                } else if (sprite_start_y >= height) {
+                    std.log.warn("Opcode {} attempted to draw sprite with starting Y:{d} outside window. Skipping draw step", .{ opcode, sprite_start_y });
                 }
             },
             0xE000 => {

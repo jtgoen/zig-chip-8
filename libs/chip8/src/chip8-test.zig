@@ -502,6 +502,8 @@ test "DXYN draws sprite" {
 
     interpreter.V[1] = 2;
     interpreter.V[2] = 4;
+    interpreter.V[0xF] = 99; // set flag to a value where we will know if it's been modified
+
     interpreter.I = 0x50; // Index of font glyph '0'
 
     interpreter.opcode = 0xD125;
@@ -511,13 +513,53 @@ test "DXYN draws sprite" {
     var y_index = interpreter.V[2];
 
     // Check that '0' glyph was drawn to the screen
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0, 1 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1, 1 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
 
     // Confirm that "unset" flag is off
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
+}
+
+test "DXYN overwritten sprite with unset pixels" {
+    var test_harness = try initTestHarness();
+    defer test_harness.arena.deinit();
+    var interpreter = test_harness.interpreter;
+
+    interpreter.V[1] = 2;
+    interpreter.V[2] = 4;
+    interpreter.V[0xF] = 99; // set flag to a value where we will know if it's been modified
+    interpreter.I = 0x50; // Index of font glyph '0'
+
+    interpreter.opcode = 0xD125;
+    try interpreter.decode();
+
+    var x_index = interpreter.V[1];
+    var y_index = interpreter.V[2];
+
+    // Check that '0' glyph was drawn to the screen
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
+
+    // Confirm that "unset" flag is off
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
+
+    interpreter.I = 0x55; // Index of font glyph '1'
+    try interpreter.decode();
+
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 1, 0, 0, 0, 0, 0 }, interpreter.screen_2d[y_index][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 1, 1, 0, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 1][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 1, 0, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 2][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 1, 0, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 3][x_index .. x_index + 8]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 1, 1, 1, 0, 0, 0, 0 }, interpreter.screen_2d[y_index + 4][x_index .. x_index + 8]);
+
+    // Confirm that "unset" flag is now on
+    try std.testing.expectEqual(@as(u8, 1), interpreter.V[0xF]);
 }
 
 test "DXYN draws portion of sprite in screen bounds" {
@@ -525,8 +567,9 @@ test "DXYN draws portion of sprite in screen bounds" {
     defer test_harness.arena.deinit();
     var interpreter = test_harness.interpreter;
 
-    interpreter.V[1] = chip8.width - 7;
+    interpreter.V[1] = chip8.width - 3;
     interpreter.V[2] = chip8.height - 4;
+    interpreter.V[0xF] = 99; // set flag to a value where we will know if it's been modified
     interpreter.I = 0x50; // Index of font glyph '0'
 
     interpreter.opcode = 0xD125;
@@ -535,13 +578,14 @@ test "DXYN draws portion of sprite in screen bounds" {
     var x_index = interpreter.V[1];
     var y_index = interpreter.V[2];
 
-    // Check that '0' glyph was drawn to the screen
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 1, 1 }, interpreter.screen_2d[y_index][x_index..chip8.width]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0 }, interpreter.screen_2d[y_index + 1][x_index..chip8.width]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0 }, interpreter.screen_2d[y_index + 2][x_index..chip8.width]);
-    try std.testing.expectEqualSlices(u32, &[_]u32{ 0, 0, 0, 0, 1, 0, 0 }, interpreter.screen_2d[y_index + 3][x_index..chip8.width]);
+    // Check that '0' glyph was drawn to the screen, without rightmost column or last row
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 1, 1 }, interpreter.screen_2d[y_index][x_index..chip8.width]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0 }, interpreter.screen_2d[y_index + 1][x_index..chip8.width]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0 }, interpreter.screen_2d[y_index + 2][x_index..chip8.width]);
+    try std.testing.expectEqualSlices(u32, &[_]u32{ 1, 0, 0 }, interpreter.screen_2d[y_index + 3][x_index..chip8.width]);
 
     // TODO: Confirm that "unset" flag is off
+    try std.testing.expectEqual(@as(u8, 0), interpreter.V[0xF]);
 }
 
 test "DXYN does not draw sprite that is outside of screen bounds" {
@@ -550,13 +594,28 @@ test "DXYN does not draw sprite that is outside of screen bounds" {
     var interpreter = test_harness.interpreter;
 
     interpreter.V[1] = chip8.width + 1;
-    interpreter.V[2] = chip8.height + 1;
+    interpreter.V[2] = chip8.height - 2;
+    interpreter.V[0xF] = 99; // set flag to a value where we will know if it's been modified
     interpreter.I = 0x50; // Index of font glyph '0'
 
     interpreter.opcode = 0xD125;
     try interpreter.decode();
 
-    // TODO: Confirm that "unset" flag is unchanged (or just on? need to think about behavior here)
+    try std.testing.expectEqualSlices(u32, ([_]u32{0} ** chip8.resolution)[0..], (interpreter.screen.*)[0..]);
+
+    // Confirm that "unset" flag is unchanged
+    try std.testing.expectEqual(@as(u8, 99), interpreter.V[0xF]);
+
+    interpreter.V[1] = chip8.width - 2;
+    interpreter.V[2] = chip8.height + 1;
+
+    interpreter.opcode = 0xD125;
+    try interpreter.decode();
+
+    try std.testing.expectEqualSlices(u32, ([_]u32{0} ** chip8.resolution)[0..], (interpreter.screen.*)[0..]);
+
+    // Confirm that "unset" flag is unchanged
+    try std.testing.expectEqual(@as(u8, 99), interpreter.V[0xF]);
 }
 
 test "DXYN mapping unaddressable sprite data returns error" {
@@ -571,8 +630,6 @@ test "DXYN mapping unaddressable sprite data returns error" {
     interpreter.opcode = 0xD125;
 
     try std.testing.expectError(chip8.Chip8Error.SegmentationFault, interpreter.decode());
-
-    // TODO: Confirm that "unset" flag is unchanged
 }
 
 test "2D Screen View Updates" {
