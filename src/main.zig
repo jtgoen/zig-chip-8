@@ -12,7 +12,8 @@ pub fn main() anyerror!void {
         .memory = try allocator.create([4096]u8),
         .V = try allocator.create([16]u8),
         .stack = try allocator.create([16]u16),
-        .screen = try allocator.create([chip8.resolution]u8),
+        .screen = try allocator.create([chip8.resolution]u32),
+        .screen_2d = try allocator.create([chip8.height][]u32),
         .keypad = try allocator.create([16]u8),
     };
 
