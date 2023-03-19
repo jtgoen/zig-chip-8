@@ -4,15 +4,19 @@ const fs = std.fs;
 const file = fs.File;
 const file_reader = file.Reader;
 
-// Initial position for the program counter for most programs
+/// Initial position for the program counter for most programs
 pub const pc_init: u16 = 0x200;
 
-// Used for handling edge case of running ETI 660 programs,
-//  as they start the program counter at a different memory address
+/// Used for handling edge case of running ETI 660 programs,
+///  as they start the program counter at a different memory address
 pub const eti_660_pc_init: u16 = 0x600;
 
+/// Fixed memory size allocated for CHIP-8
 pub const mem_size = 4096;
 
+/// CHIP-8 Fontset (0-F)
+///  Represented as an 8x5 grid of bits, with the glyph drawn in
+///  the first 4x5 bits
 pub const fontset = [_]u8{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -32,53 +36,76 @@ pub const fontset = [_]u8{
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 };
 
+/// Screen width
 pub const width = 64;
+/// Screen height
 pub const height = 32;
 
+/// Resolution of the screen (w.h)
 pub const resolution = width * height;
 
+/// CHIP-8-specific error conditions
+///  - IndexOutOfBounds: Operation has attempted to index outside of the
+///     boundaries of an internal object
+///  - SegmentationFault: Operation attempted to access a memory location
+///     outside of the memory allocated to the interpreter
+///  - SubroutineStackOverflow: The interpreter is attempting to access a
+///     subroutine outside of the bounds of the subroutine stack
+///  - SubroutineStackEmpty: The interpreter attempted to return from a
+///     subroutine, but encountered an empty stack
+///  - UnexpectedError: Catch-all for encountering unexpected edge-case behavior
 pub const Chip8Error = error{ IndexOutOfBounds, SegmentationFault, SubroutineStackOverflow, SubroutineStackEmpty, UnexpectedError };
 
+/// Interpreter for the CHIP-8 computer specification
+///  - Capable of emulating processing cycles at a rate managed by the user
+///  - The screen is accessible as a u32 slice for maximum compatibility with
+///     frame buffer rendering
+///  - The keypad is accessible for manipulation through external keystroke manageers
 pub const Chip8 = struct {
-    // All accessible memory
+    /// All accessible memory
     memory: *[mem_size]u8,
 
-    // General purpose registers, labeled V0-VF (VF is for the "carry flag")
+    /// General purpose registers, labeled V0-VF (VF is for the "carry flag")
     V: *[16]u8,
 
-    // Index register, generally used for storing memory addresses,
-    //  so only lowest 12 bits are usually used
+    /// Index register, generally used for storing memory addresses,
+    ///  so only lowest 12 bits are usually used
     I: u16 = pc_init,
 
-    // Special purpose register for timing delays, decremented at
-    // a rate of 60Hz when non-zero
+    /// Special purpose register for timing delays, decremented at
+    /// a rate of 60Hz when non-zero
     delay_timer: u8 = 0,
-    // Special purpose register for timing how long to play the
-    //  Chip-8's buzzer, decremented at a rate of 60Hz when non-zero
+    /// Special purpose register for timing how long to play the
+    ///  Chip-8's buzzer, decremented at a rate of 60Hz when non-zero
     sound_timer: u8 = 0,
 
-    // Program counter. Used to store the currently executing address
+    /// Program counter. Used to store the currently executing address
     pc: u16 = pc_init,
 
-    // Stores addresses that the interpreter should return to when
-    //  finishing subroutines (allows for up to 16 nested subroutines)
+    /// Stores addresses that the interpreter should return to when
+    ///  finishing subroutines (allows for up to 16 nested subroutines)
     stack: *[16]u16,
-    // Stack pointer, points to current position on the stack
+    /// Stack pointer, points to current position on the stack
     sp: u8 = 0,
 
-    // Current parsed opcode to be decoded and executed by the interpreter
+    /// Current parsed opcode to be decoded and executed by the interpreter
     opcode: u16 = 0,
 
-    // The screen with which to render the state of the program,
-    //  representing a screen constrained by the resolution constant
+    /// The screen with which to render the state of the program,
+    ///  representing a screen constrained by the resolution constant
     screen: *[resolution]u32,
-    // 2D view of screen buffer
+    /// 2D view of screen buffer (h.w)
     screen_2d: *[height][]u32,
 
+    /// Array representing the pressed/unpressed state of a CHIP-8 keypad
     keypad: *[16]u8,
 
+    /// Flag indicating if the interpreter is configured to interpret ETI 660 programs
+    ///  Defaults to 'false'
     is_eti_660: bool = false,
 
+    /// Initializes the state of the CHIP-8 interpreter, including
+    ///  screen, keypad, current opcode, registers, stack, memory, and timers
     pub fn initialize(self: *Chip8) !void {
         self.screen.* = [_]u32{0} ** resolution;
         self.init_screen_2d();
@@ -118,6 +145,8 @@ pub const Chip8 = struct {
         }
     }
 
+    /// Loads a file in the CHIP-8 format from the provided file_path into
+    ///  the interpreter's workspace
     pub fn load(self: *Chip8, file_path: []const u8) !usize {
         var open_file = try fs.cwd().openFile(file_path, .{});
         defer open_file.close();
@@ -125,6 +154,8 @@ pub const Chip8 = struct {
         return try open_file.reader().readAll(self.workspace());
     }
 
+    /// Convenience method to retrieve a slice pointing to the interpeter's
+    ///  font set
     pub fn fontSet(self: *Chip8) []const u8 {
         return self.memory[0x050..0x0A0];
     }
@@ -137,6 +168,10 @@ pub const Chip8 = struct {
         }
     }
 
+    /// Emulates a single cycle for a CHIP-8 machine, including:
+    ///  - reading and decoding the opcode
+    ///  - updating the program counter
+    ///  - managing timer-related behavior (this choice may change)
     pub fn emulateCycle(self: *Chip8) Chip8Error!void {
         self.opcode = @as(u16, self.memory[self.pc]) << 8 | @as(u16, self.memory[self.pc + 1]);
         std.log.info("Fetched Opcode: {x}", .{self.opcode});
@@ -161,6 +196,9 @@ pub const Chip8 = struct {
         }
     }
 
+    /// Decodes the interpreter's current read opcode, updating the state of
+    ///  the interpreter as appropriate. See documentation on CHIP-8 opcodes
+    ///  for expected behavior
     pub fn decode(self: *Chip8) Chip8Error!void {
         var opcode = self.opcode;
         switch (opcode & 0xF000) {
