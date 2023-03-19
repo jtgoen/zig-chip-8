@@ -19,13 +19,22 @@ pub fn main() anyerror!void {
 
     try interpreter.initialize();
 
-    _ = try interpreter.load("programs/test_opcode.ch8");
+    var args_iterator = try std.process.argsWithAllocator(allocator);
+    defer args_iterator.deinit();
 
-    std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{ interpreter, interpreter.memory });
+    var program_path: ?([]const u8) = args_iterator.next();
 
-    while (true) {
-        try interpreter.emulateCycle();
-        break;
+    if (program_path) |*path| {
+        _ = try interpreter.load(path.*);
+
+        std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{ interpreter, interpreter.memory });
+
+        while (true) {
+            try interpreter.emulateCycle();
+            break;
+        }
+    } else {
+        std.debug.print("Program file path not provided. Program not loaded! Exiting...", .{});
     }
 }
 
