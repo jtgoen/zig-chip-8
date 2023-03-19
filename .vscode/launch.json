@@ -11,6 +11,14 @@
             "program": "${workspaceFolder}/libs/chip8/zig-out/bin/chip8",
             "args": ["/Users/jtgoen/bin/zig"],
             "cwd": "${workspaceFolder}/libs/chip8"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Chip-8 Emulator Debug",
+            "program": "${workspaceFolder}/zig-out/bin/zig-chip-8",
+            "args": ["/Users/jtgoen/bin/zig", "programs/test_opcode.ch8"],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
