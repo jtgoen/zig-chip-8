@@ -75,6 +75,9 @@ pub const Chip8 = struct {
     /// Special purpose register for timing delays, decremented at
     /// a rate of 60Hz when non-zero
     delay_timer: u8 = 0,
+    /// Flag indicating if the previous cycle detected the delay timer as "active"
+    delay_flag: bool = false,
+
     /// Special purpose register for timing how long to play the
     ///  Chip-8's buzzer, decremented at a rate of 60Hz when non-zero
     sound_timer: u8 = 0,
@@ -109,7 +112,7 @@ pub const Chip8 = struct {
     pub fn initialize(self: *Chip8) !void {
         self.screen.* = [_]u32{0} ** resolution;
         self.init_screen_2d();
-        self.keypad.* = [_]u8{0} ** self.keypad.len;
+        self.keypad.* = [_]u8{0} ** 16;
 
         self.opcode = 0;
 
@@ -121,18 +124,20 @@ pub const Chip8 = struct {
             self.pc = pc_init;
         }
 
-        self.stack.* = [_]u16{0} ** self.stack.len;
+        self.stack.* = [_]u16{0} ** 16;
         self.sp = 0;
 
-        self.V.* = [_]u8{0} ** self.V.len;
+        self.V.* = [_]u8{0} ** 16;
 
-        self.memory.* = [_]u8{0} ** self.memory.len;
+        self.memory.* = [_]u8{0} ** mem_size;
         var fontset_slice = self.memory[0x050..0x0A0];
         for (fontset, 0..) |font_byte, i| {
             fontset_slice[i] = font_byte;
         }
 
         self.delay_timer = 0;
+        self.delay_flag = false;
+
         self.sound_timer = 0;
     }
 
@@ -184,15 +189,13 @@ pub const Chip8 = struct {
             return result;
         }
 
-        if (self.delay_timer > 0) {
-            self.delay_timer -= 1;
-            if (self.delay_timer == 0) {
-                std.log.info("Delay expired!", .{});
-            }
+        if (self.delay_timer == 0 and self.delay_flag == true) {
+            std.log.info("Delay expired!", .{});
         }
+        self.delay_flag = if (self.delay_timer > 0) true else false;
+
         if (self.sound_timer > 0) {
             std.log.info("BEEP!", .{});
-            self.sound_timer -= 1;
         }
     }
 
