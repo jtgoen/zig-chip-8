@@ -355,7 +355,7 @@ pub const Chip8 = struct {
                 self.I = opcode & 0x0FFF;
             },
             0xB000 => { // BNNN: Jumps to the address NNN plus V0.
-                var addr: u12 = @as(u12, @truncate(opcode & 0x0FFF));
+                var addr: u12 = @truncate(opcode & 0x0FFF);
 
                 var result = @addWithOverflow(addr, self.V[0]);
                 addr = result[0];
@@ -452,7 +452,7 @@ pub const Chip8 = struct {
                 }
             },
             0xE000 => {
-                var vx_index: u4 = @as(u4, @truncate((opcode & 0x0F00) >> 8));
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
                 var key_index = self.V[vx_index];
 
                 switch (opcode & 0xF0FF) {
@@ -470,7 +470,7 @@ pub const Chip8 = struct {
                 }
             },
             0xF000 => {
-                var vx_index: u4 = @as(u4, @truncate((opcode & 0x0F00) >> 8));
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
                 var vx_val = self.V[vx_index];
 
                 var f_oc_masked = opcode & 0xF0FF;
@@ -553,10 +553,10 @@ pub const Chip8 = struct {
     }
 
     fn skipNextInstrVxNn(self: *Chip8, if_eq: bool) void {
-        var vx_index: u4 = @as(u4, @truncate((self.opcode & 0x0F00) >> 8));
+        var vx_index: u4 = @truncate((self.opcode & 0x0F00) >> 8);
         var vx_value: u8 = self.V[vx_index];
 
-        var nn: u8 = @as(u8, @truncate(self.opcode & 0x00FF));
+        var nn: u8 = @truncate(self.opcode & 0x00FF);
 
         switch (if_eq) {
             true => {
@@ -573,10 +573,10 @@ pub const Chip8 = struct {
     }
 
     fn skipNextInstrVxVy(self: *Chip8, if_eq: bool) void {
-        var vx_index: u4 = @as(u4, @truncate((self.opcode & 0x0F00) >> 8));
+        var vx_index: u4 = @truncate((self.opcode & 0x0F00) >> 8);
         var vx_value: u8 = self.V[vx_index];
 
-        var vy_index: u4 = @as(u4, @truncate((self.opcode & 0x00F0) >> 4));
+        var vy_index: u4 = @truncate((self.opcode & 0x00F0) >> 4);
         var vy_value: u8 = self.V[vy_index];
 
         switch (if_eq) {
