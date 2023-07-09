@@ -283,20 +283,20 @@ pub const Chip8 = struct {
                 }
             },
             0x6000 => { // 6XNN: Sets VX to NN.
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
-                var nn: u8 = @truncate(u8, opcode & 0x00FF);
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
+                var nn: u8 = @truncate(opcode & 0x00FF);
 
                 self.V[vx_index] = nn;
             },
             0x7000 => { // 7XNN: Adds NN to VX. (Carry flag is not changed);
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
-                var nn: u8 = @truncate(u8, opcode & 0x00FF);
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
+                var nn: u8 = @truncate(opcode & 0x00FF);
 
                 self.V[vx_index] +%= nn;
             },
             0x8000 => {
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
-                var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
+                var vy_index: u4 = @truncate((opcode & 0x00F0) >> 4);
                 switch (opcode & 0xF00F) {
                     0x8000 => { // 8XY0: Sets VX to the value of VY.
                         self.V[vx_index] = self.V[vy_index];
@@ -313,7 +313,7 @@ pub const Chip8 = struct {
                     0x8004 => { // 8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there is not.
                         var result = @addWithOverflow(self.V[vx_index], self.V[vy_index]);
                         self.V[vx_index] = result[0];
-                        self.V[0xF] = @intCast(u8, result[1]);
+                        self.V[0xF] = @intCast(result[1]);
                     },
                     0x8005 => { // 8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there is not.
                         var result = @subWithOverflow(self.V[vx_index], self.V[vy_index]);
@@ -355,7 +355,7 @@ pub const Chip8 = struct {
                 self.I = opcode & 0x0FFF;
             },
             0xB000 => { // BNNN: Jumps to the address NNN plus V0.
-                var addr: u12 = @as(u12, @truncate(u12, opcode & 0x0FFF));
+                var addr: u12 = @as(u12, @truncate(opcode & 0x0FFF));
 
                 var result = @addWithOverflow(addr, self.V[0]);
                 addr = result[0];
@@ -364,16 +364,16 @@ pub const Chip8 = struct {
                 self.pc = @as(u16, addr);
             },
             0xC000 => { // CXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
-                self.V[vx_index] = random.int(u8) & @truncate(u8, opcode & 0x00FF);
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
+                self.V[vx_index] = random.int(u8) & @as(u8, @truncate(opcode & 0x00FF));
             },
             0xD000 => { // DXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
                 // Each row of 8 pixels is read as bit-coded starting from memory location I; I value does not change after the execution of this instruction.
                 // As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that does not happen
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var vx_index: u4 = @truncate((opcode & 0x0F00) >> 8);
                 const sprite_width = 8;
-                var vy_index: u4 = @truncate(u4, (opcode & 0x00F0) >> 4);
-                var sprite_height = @truncate(u4, (opcode & 0x000F));
+                var vy_index: u4 = @truncate((opcode & 0x00F0) >> 4);
+                var sprite_height: u4 = @truncate((opcode & 0x000F));
                 var sprite_start_x = self.V[vx_index];
                 var sprite_start_y = self.V[vy_index];
 
@@ -392,13 +392,13 @@ pub const Chip8 = struct {
                         x_truncated = attempt_sprite_end_x - width;
                         std.log.warn("Attempted to draw a sprite outside of the horizontal screen bounds: Start: {d} End: {d} \nA partial sprite will be drawn in the viewable screen.", .{ sprite_start_x, attempt_sprite_end_x });
                     }
-                    var sprite_end_x = std.math.min(attempt_sprite_end_x, width);
+                    var sprite_end_x = @min(attempt_sprite_end_x, width);
 
                     var attempt_sprite_end_y = sprite_start_y + (sprite_height);
                     if (attempt_sprite_end_y > height) {
                         std.log.warn("Attempted to draw a sprite outside of the vertical screen bounds: Start: {d} End: {d} \nA partial sprite will be drawn in the viewable screen.", .{ sprite_start_y, attempt_sprite_end_y });
                     }
-                    var sprite_end_y = std.math.min(attempt_sprite_end_y, height);
+                    var sprite_end_y = @min(attempt_sprite_end_y, height);
 
                     var vert_index = sprite_start_y;
 
@@ -452,7 +452,7 @@ pub const Chip8 = struct {
                 }
             },
             0xE000 => {
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var vx_index: u4 = @as(u4, @truncate((opcode & 0x0F00) >> 8));
                 var key_index = self.V[vx_index];
 
                 switch (opcode & 0xF0FF) {
@@ -470,7 +470,7 @@ pub const Chip8 = struct {
                 }
             },
             0xF000 => {
-                var vx_index: u4 = @truncate(u4, (opcode & 0x0F00) >> 8);
+                var vx_index: u4 = @as(u4, @truncate((opcode & 0x0F00) >> 8));
                 var vx_val = self.V[vx_index];
 
                 var f_oc_masked = opcode & 0xF0FF;
@@ -553,10 +553,10 @@ pub const Chip8 = struct {
     }
 
     fn skipNextInstrVxNn(self: *Chip8, if_eq: bool) void {
-        var vx_index: u4 = @truncate(u4, (self.opcode & 0x0F00) >> 8);
+        var vx_index: u4 = @as(u4, @truncate((self.opcode & 0x0F00) >> 8));
         var vx_value: u8 = self.V[vx_index];
 
-        var nn: u8 = @truncate(u8, self.opcode & 0x00FF);
+        var nn: u8 = @as(u8, @truncate(self.opcode & 0x00FF));
 
         switch (if_eq) {
             true => {
@@ -573,10 +573,10 @@ pub const Chip8 = struct {
     }
 
     fn skipNextInstrVxVy(self: *Chip8, if_eq: bool) void {
-        var vx_index: u4 = @truncate(u4, (self.opcode & 0x0F00) >> 8);
+        var vx_index: u4 = @as(u4, @truncate((self.opcode & 0x0F00) >> 8));
         var vx_value: u8 = self.V[vx_index];
 
-        var vy_index: u4 = @truncate(u4, (self.opcode & 0x00F0) >> 4);
+        var vy_index: u4 = @as(u4, @truncate((self.opcode & 0x00F0) >> 4));
         var vy_value: u8 = self.V[vy_index];
 
         switch (if_eq) {
