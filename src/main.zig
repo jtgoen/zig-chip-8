@@ -25,7 +25,7 @@ pub fn main() anyerror!void {
     defer args_iterator.deinit();
 
     var program_path: ?([]const u8) = args_iterator.next();
-    while (!hasCh8Ext(program_path)) program_path = args_iterator.next();
+    while (!hasCh8ExtOrNull(program_path)) program_path = args_iterator.next();
 
     if (program_path) |path| {
         var bytes_read = try interpreter.load(path);
@@ -39,8 +39,11 @@ pub fn main() anyerror!void {
     }
 }
 
-fn hasCh8Ext(arg: ?([]const u8)) bool {
-    return if (arg) |arg_arr| std.mem.endsWith(u8, arg_arr, ch8_ext) else false;
+/// Checks if the current arg:
+/// - Matches the Chip-8 file extension
+/// - Is null (we've reached the end)
+fn hasCh8ExtOrNull(arg: ?([]const u8)) bool {
+    return if (arg) |arg_slice| std.mem.endsWith(u8, arg_slice, ch8_ext) else true;
 }
 
 test "basic test" {
