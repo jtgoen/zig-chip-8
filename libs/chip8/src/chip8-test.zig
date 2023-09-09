@@ -145,7 +145,7 @@ test "0NNN Skips Machine Code Instruction" {
     interpreter.opcode = 0x0FFF;
     try interpreter.decode();
 
-    try std.testing.expectEqual(chip8.pc_init + 2, interpreter.pc);
+    try std.testing.expectEqual(chip8.pc_init, interpreter.pc);
 }
 
 test "7XNN" {

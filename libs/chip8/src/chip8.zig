@@ -544,12 +544,10 @@ pub const Chip8 = struct {
 
     fn unknownOpcode(self: *Chip8) void {
         std.log.warn("Encountered unknown opcode {x}. Skipping.", .{self.opcode});
-        self.pc += 2;
     }
 
     fn skipMachineCodeInstruction(self: *Chip8) void {
         std.log.warn("Encountered opcode 0{x}, which relies on executing machine-specific code. Ignoring.", .{self.opcode});
-        self.pc += 2;
     }
 
     fn skipNextInstrVxNn(self: *Chip8, if_eq: bool) void {
