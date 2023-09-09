@@ -2,6 +2,8 @@ const std = @import("std");
 const chip8 = @import("chip8");
 const Chip8 = chip8.Chip8;
 
+const ch8_ext = ".ch8";
+
 pub fn main() anyerror!void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -23,19 +25,22 @@ pub fn main() anyerror!void {
     defer args_iterator.deinit();
 
     var program_path: ?([]const u8) = args_iterator.next();
+    while (!hasCh8Ext(program_path)) program_path = args_iterator.next();
 
-    if (program_path) |*path| {
-        _ = try interpreter.load(path.*);
-
-        std.debug.print("Interpeter Initialized and program loaded! \n{}\nMemory:\n{s}\n", .{ interpreter, interpreter.memory });
+    if (program_path) |path| {
+        var bytes_read = try interpreter.load(path);
+        std.debug.print("Interpeter Initialized and program loaded! {} bytes read.\n", .{bytes_read});
 
         while (true) {
             try interpreter.emulateCycle();
-            break;
         }
     } else {
         std.debug.print("Program file path not provided. Program not loaded! Exiting...", .{});
     }
+}
+
+fn hasCh8Ext(arg: ?([]const u8)) bool {
+    return if (arg) |arg_arr| std.mem.endsWith(u8, arg_arr, ch8_ext) else false;
 }
 
 test "basic test" {
