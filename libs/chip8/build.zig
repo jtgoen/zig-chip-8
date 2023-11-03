@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) void {
 
     // Creates a step for unit testing.
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/chip8-test.zig" },
+        .root_source_file = .{ .path = "src/chip8_test.zig" },
         .target = target,
         .optimize = optimize,
     });

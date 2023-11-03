@@ -15,4 +15,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: goto-bus-stop/setup-zig@v2
-      - run: zig test libs/chip8/src/chip8-test.zig
+      - run: zig test libs/chip8/src/chip8_test.zig
