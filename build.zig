@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const chip8 = b.createModule(.{ .source_file = .{ .path = "libs/chip8/src/chip8.zig" } });
+    const sdlDisplay = b.createModule(.{ .source_file = .{ .path = "libs/display/src/sdl_display.zig" } });
 
     const exe = b.addExecutable(.{
         .name = "zig-chip-8",
@@ -26,7 +27,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    exe.linkSystemLibrary("SDL2");
+    exe.linkLibC();
+
     exe.addModule("chip8", chip8);
+    exe.addModule("sdlDisplay", sdlDisplay);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
