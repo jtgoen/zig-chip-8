@@ -123,10 +123,10 @@ pub const SdlDisplay = struct {
             }
         }
 
-        _ = sdl.SDL_UnlockTexture(self.framebuffer);
+        sdl.SDL_UnlockTexture(self.framebuffer);
 
         _ = sdl.SDL_RenderClear(self.renderer);
         _ = sdl.SDL_RenderCopy(self.renderer, self.framebuffer, null, null);
-        _ = sdl.SDL_RenderPresent(self.renderer);
+        sdl.SDL_RenderPresent(self.renderer);
     }
 };
