@@ -1,6 +1,7 @@
 const std = @import("std");
 const sdl = @import("sdl.zig");
 
+// HEAVILY inspired by display demonstrated in the tutorial at https://handling.website/archives/1977
 pub const SdlDisplay = struct {
     const Self = @This();
 
